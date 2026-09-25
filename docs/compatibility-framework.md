@@ -19,9 +19,11 @@ The framework answers five fundamental questions for any item:
 
 ---
 
-## 1. Provider Identity (`ClassificationProviderId`)
+## 1. Provider Identity (`ClassificationProviderId`) & Rule Provenance (`ClassificationRuleId`)
 
-Every classification contributor is identified by a namespace-safe `ClassificationProviderId` wrapping a Minecraft `ResourceLocation`.
+Every classification contributor is identified by two distinct identifiers:
+- **`ClassificationProviderId`**: A namespace-safe identifier for the contributor/system (e.g. `muslimqol:builtin`, `farmersdelight:datapack`).
+- **`ClassificationRuleId`**: A specific source or file definition identifier (e.g. `farmersdelight:food_classifications/crops`, `muslimqol:food_classifications/builtin`).
 
 ### Reserved System Identities
 The following provider IDs are reserved for MuslimQoL's internal pipeline:
@@ -58,19 +60,23 @@ Higher priority levels always override lower priority levels.
 
 ## 3. Conflict Resolution & Datapack Preservation
 
-When multiple providers contribute classifications:
+When multiple rules or providers contribute classifications:
 
 1. **Datapack Multi-Candidate Preservation**:
-   If multiple datapacks classify the same item, all candidates are preserved across namespaces instead of being overwritten via "last-write-wins".
+   If multiple datapacks or multiple rule files within a datapack classify the same item, all candidates are preserved across namespaces and rule files instead of being overwritten via "last-write-wins".
 2. **Same Status**:
-   If competing providers at the highest matching priority tier propose identical `FoodStatus`, resolution succeeds cleanly with `conflicted = false`.
+   If competing providers or rules at the highest matching priority tier propose identical `FoodStatus`, resolution succeeds cleanly with `conflicted = false`.
 3. **Conflicting Status**:
-   If competing providers at the highest matching priority propose differing statuses (e.g. `HALAL` vs `RESTRICTED` at `DATAPACK` priority):
-   - A **deterministic winner** is selected using provider ID lexicographical order (`providerA.id().compareTo(providerB.id())`).
+   If competing candidates at the highest matching priority propose differing statuses (e.g. `HALAL` vs `RESTRICTED` at `DATAPACK` priority):
+   - A **deterministic winner** is selected using strict tie-breaking criteria:
+     1. Priority level descending (`priority DESC`)
+     2. Provider ID lexicographical ascending (`providerId ASC`)
+     3. Rule ID lexicographical ascending (`ruleId ASC`)
+     4. Final stable tie-breaker: `status name ASC`, followed by `reason ASC`.
    - `conflicted = true` is flagged in the `ClassificationResolution`.
    - All competing candidates are retained in `resolution.candidates()` for inspection.
 4. **Determinism Guarantee**:
-   $$\text{same input item} + \text{same provider set} = \text{same resolution every time}$$
+   $$\text{same input item} + \text{same candidate set} = \text{same resolution every time}$$
    Resolution order does not depend on hash-map traversal or thread scheduling.
 
 ---
@@ -91,6 +97,7 @@ ClassificationResolution resolution = FoodClassifier.resolve(itemStack);
 - Evaluates priority tiers from highest (`USER_OVERRIDE`) to lowest (`BUILTIN`).
 - **Short-circuits immediately** upon finding a match in the active tier.
 - Avoids allocating candidate lists and avoids querying lower-priority tiers when a higher tier has matched.
+- Uses identical candidate tie-breaking to ensure `FoodClassifier.classify(item)` is strictly equivalent to `FoodClassifier.resolve(item).selected()`.
 
 ### Diagnostic Path (`resolve`)
 - Queries all registered providers across all priority tiers.
@@ -117,18 +124,21 @@ data/<namespace>/muslimqol/compatibility.json
 }
 ```
 
-### Format Validation
-The `format` field specifies the metadata schema version (currently `1`). Descriptors with unknown or unsupported format numbers (e.g. `999` or non-positive values) are safely rejected and logged with a warning, preventing malformed metadata from causing runtime issues.
-
-### Missing Target Mod Handling
-If `target_mod` is specified but that mod is not installed in the Minecraft instance:
-- MuslimQoL **safely skips** loading the food classifications from that namespace.
-- An informational log entry is recorded at reload time:
-  ```text
-  Skipped compatibility pack 'Farmer's Delight Compatibility' (farmersdelight) because target mod 'farmersdelight' is not loaded
-  ```
-- No runtime exceptions, no hard dependencies, and no repetitive tick logging.
-- Existing v0.1 datapacks without `compatibility.json` continue to load unconditionally.
+### Parse States (`MetadataParseResult`)
+The loader classifies pack metadata into three distinct states:
+1. **`Absent`**: No `compatibility.json` descriptor present. The datapack is treated as a standard v0.1 legacy pack and loads unconditionally.
+2. **`Valid`**: Contains valid format `1` metadata.
+   - If `target_mod` is installed: Loaded and active.
+   - If `target_mod` is not installed: Safely skipped at reload time with an informational log:
+     ```text
+     Skipped compatibility pack 'Farmer's Delight Compatibility' (farmersdelight) because target mod 'farmersdelight' is not loaded
+     ```
+3. **`Invalid`**: Unsupported format version (e.g. `999` or non-positive value), malformed JSON, or non-object root.
+   - MuslimQoL **skips all food classifications from that namespace** and logs a warning:
+     ```text
+     Skipping compatibility classifications for namespace 'futurepack' due to invalid metadata: Unsupported format version: 999
+     ```
+   - Invalid packs **never fall back** to unconditional loading.
 
 ---
 
@@ -136,18 +146,19 @@ If `target_mod` is specified but that mod is not installed in the Minecraft inst
 
 ### `/muslimqol classify <item>`
 
-Provides a detailed provenance inspection.
+Provides a detailed provenance inspection including rule identifier:
 
 **Classified Item Output:**
 ```text
 Item: minecraft:porkchop | Resolved: RESTRICTED
 Winner:
   Source: muslimqol:builtin
+  Rule: muslimqol:food_classifications/builtin
   Type: BUILTIN
   Priority: BUILTIN
   Reason: swine
 Candidates:
-  RESTRICTED <- muslimqol:builtin
+  RESTRICTED <- muslimqol:builtin [rule: muslimqol:food_classifications/builtin]
 Conflict: no
 ```
 
@@ -174,11 +185,17 @@ Registered classification providers:
 
 ---
 
-## 7. True Atomic Reload Semantics & Concurrency
+## 7. True Transactional Reload Semantics & Concurrency
 
-MuslimQoL guarantees that readers never observe empty or partially loaded states during resource reloads (`/reload` or server startup):
+MuslimQoL guarantees that readers never observe empty, partially loaded, or hybrid states during resource reloads (`/reload` or server startup):
 
-1. **Atomic Snapshot Swap**: All registered providers and compatibility metadata are bundled into an immutable `CompatibilitySnapshot`, stored in an `AtomicReference`.
-2. **Atomic Registry Map Swap**: Datapack classifications and user overrides in `FoodClassificationRegistry` are maintained in `AtomicReference<Map<ResourceLocation, ...>>`.
-3. **No Intermediate Cleared States**: During reload, all JSON files and datapacks are fully parsed and assembled into new immutable maps in memory before being swapped in a single atomic step.
-4. **Thread Safety**: Concurrent readers (server tick loop, item consumption events, client tooltips) always read either the complete previous state or the complete new state, never an empty or half-populated map.
+1. **Unified Runtime State (`ClassificationRuntimeState`)**:
+   Datapack classification mappings, user overrides, active compatibility packs, and skipped compatibility packs are bundled into an immutable `ClassificationRuntimeState` record.
+2. **Single Atomic Swap**:
+   During reload, all JSON files and datapacks are fully parsed and assembled into the new runtime state before being swapped in a single atomic operation via `FoodClassificationRegistry.applyRuntimeState(...)`.
+3. **Single-Generation Query Guarantee**:
+   Queries capture active state once at the start of resolution (`CompatibilitySnapshot`). Consecutive reads within a single resolution or snapshot never observe hybrid generations (e.g., part from generation N and part from generation N+1).
+4. **No Intermediate Cleared States**:
+   No `clear()` or destructive mutations occur on live reader maps.
+5. **Thread Safety**:
+   Concurrent readers (server tick loop, item consumption events, client tooltips) always read either the complete previous generation or the complete new generation.

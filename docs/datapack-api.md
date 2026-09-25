@@ -91,10 +91,14 @@ data/<namespace>/muslimqol/food_classifications/<filename>.json
 - `UNKNOWN`
 
 ### Multi-Datapack Candidate Preservation
-When multiple installed datapacks provide classifications for the same item:
+When multiple installed datapacks or rule files provide classifications for the same item:
 - Both classifications are preserved as candidates rather than being discarded by "last-write-wins" overwriting.
-- If both specify the same status, resolution succeeds cleanly.
-- If they specify differing statuses, MuslimQoL marks a conflict, retains all candidates in diagnostics (`/muslimqol classify <item>`), and breaks ties deterministically using namespace lexicographical ordering.
+- If both specify the same status, resolution succeeds cleanly without conflict.
+- If they specify differing statuses, MuslimQoL marks a conflict, retains all candidates in diagnostics (`/muslimqol classify <item>`), and breaks ties deterministically:
+  1. Priority descending (`priority DESC`)
+  2. Provider ID ascending (`providerId ASC`)
+  3. Rule ID ascending (`ruleId ASC`)
+  4. Final stable tie-breaker: `status name ASC`, followed by `reason ASC`.
 
 ---
 
@@ -115,9 +119,14 @@ data/<namespace>/muslimqol/compatibility.json
 }
 ```
 
-- `format`: Schema version. **Must be `1`**. Unsupported or future format versions (e.g. `999` or non-positive values) are safely rejected with a warning.
-- `name`: Human-readable name for diagnostics (`/muslimqol providers`).
-- `target_mod`: Optional mod ID. If specified, MuslimQoL checks if the target mod is present; if absent, the compatibility pack is safely skipped at load time without error.
+### Metadata Parse Behavior
+- **Absent (No descriptor)**: The datapack is treated as a standard v0.1 legacy pack and loads unconditionally.
+- **Valid (`format: 1`)**:
+  - If `target_mod` is installed: Active and loaded.
+  - If `target_mod` is missing: Safely skipped at reload time with an informational log.
+- **Invalid (`format: 999`, unsupported version, or malformed JSON)**:
+  - MuslimQoL logs a warning and **skips all food classifications from that namespace**.
+  - Invalid metadata never falls back to legacy loading.
 
 ---
 
@@ -132,7 +141,7 @@ or specifically reload MuslimQoL overrides with:
 /muslimqol reload
 ```
 
-### Atomic Reload Guarantee
-Reloading uses atomic reference swapping. Datapack mappings are loaded and built completely into immutable structures in memory before being swapped. Game loop ticks, consumption events, and player tooltip queries never encounter partial or cleared intermediate classification states.
+### Transactional Reload Guarantee
+Reloading uses transactional reference swapping via `ClassificationRuntimeState`. All datapack rules, user overrides, and compatibility metadata are parsed and assembled completely into immutable structures in memory before being swapped in a single atomic step. Game loop ticks, consumption events, and player tooltip queries never encounter partial, cleared, or hybrid intermediate states.
 
 
