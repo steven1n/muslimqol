@@ -24,3 +24,10 @@ type="required"
 versionRange="[1.21.1, 1.22)"
 ordering="NONE"
 side="BOTH"
+
+[[dependencies.muslimqol]]
+modId="jei"
+type="optional"
+versionRange="[19.0.0,)"
+ordering="AFTER"
+side="CLIENT"

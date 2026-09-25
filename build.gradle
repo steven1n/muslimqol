@@ -15,6 +15,10 @@ group = mod_group_id
 repositories {
     mavenLocal()
     mavenCentral()
+    maven {
+        name = "BlameJared"
+        url = "https://maven.blamejared.com"
+    }
 }
 
 base {
@@ -69,6 +73,10 @@ configurations {
 }
 
 dependencies {
+    compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
+    compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"
+    localRuntime "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
+
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.2'
     testImplementation 'org.junit.jupiter:junit-jupiter-params:5.10.2'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
