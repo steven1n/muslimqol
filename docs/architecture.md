@@ -45,8 +45,18 @@ io.github.muslimqol/
 │   ├── FoodStatus.java
 │   ├── FoodClassification.java
 │   ├── ClassificationSource.java
+│   ├── ClassificationPriority.java
+│   ├── ClassificationProviderId.java
+│   ├── FoodClassificationCandidate.java
+│   ├── ClassificationResolution.java
+│   ├── FoodClassificationProvider.java (Experimental v0.2)
 │   ├── ConsumptionPolicy.java
 │   └── PigPolicy.java
+│
+├── compat/          # Multi-provider resolution engine and compatibility management (Experimental v0.2)
+│   ├── FoodCompatibilityManager.java
+│   ├── CompatibilitySnapshot.java
+│   └── CompatibilityMetadata.java
 │
 ├── food/            # Classification logic and builtin datasets
 │   ├── FoodClassifier.java

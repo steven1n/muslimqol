@@ -92,7 +92,30 @@ data/<namespace>/muslimqol/food_classifications/<filename>.json
 
 ---
 
-## 3. Reloading Datapacks
+## 3. Optional Compatibility Metadata (v0.2+)
+
+Compatibility datapacks targeting external mods can declare an optional metadata descriptor at:
+```text
+data/<namespace>/muslimqol/compatibility.json
+```
+
+### Schema
+
+```json
+{
+  "format": 1,
+  "name": "Farmer's Delight Compatibility",
+  "target_mod": "farmersdelight"
+}
+```
+
+- `format`: Schema version (currently `1`).
+- `name`: Human-readable name for diagnostics (`/muslimqol providers`).
+- `target_mod`: Optional mod ID. If specified, MuslimQoL checks if the target mod is present; if absent, the compatibility pack is safely skipped at load time without error.
+
+---
+
+## 4. Reloading Datapacks
 
 To reload datapack classifications live in-game:
 ```text
@@ -102,3 +125,4 @@ or specifically reload MuslimQoL overrides with:
 ```text
 /muslimqol reload
 ```
+
