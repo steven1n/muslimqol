@@ -19,6 +19,10 @@ repositories {
         name = "BlameJared"
         url = "https://maven.blamejared.com"
     }
+    maven {
+        name = "Modrinth"
+        url = "https://api.modrinth.com/maven"
+    }
 }
 
 base {
@@ -64,11 +68,19 @@ tasks.named('runServer', JavaExec).configure {
     standardInput = System.in
 }
 
+boolean withFD = (project.findProperty('withFarmersDelight') ?: 'false').toString().toBoolean()
+
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 configurations {
     testCompileClasspath.extendsFrom compileClasspath
     testRuntimeClasspath.extendsFrom runtimeClasspath
+    if (withFD) {
+        farmersDelightMod {
+            canBeResolved = true
+            canBeConsumed = false
+        }
+    }
 }
 
 dependencies {
@@ -76,11 +88,73 @@ dependencies {
     // JEI is NOT compiled against, NOT bundled, and NOT present on the server or test runtime.
     clientAdditionalRuntimeClasspath "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
 
+    // Optional Farmer's Delight development runtime for compatibility testing.
+    // Activated via -PwithFarmersDelight=true.
+    // Farmer's Delight is NOT compiled against, NOT bundled, and NOT present on production or test runtime.
+    if (withFD) {
+        farmersDelightMod "maven.modrinth:farmers-delight:${farmersdelight_version}"
+        clientAdditionalRuntimeClasspath "maven.modrinth:farmers-delight:${farmersdelight_version}"
+        serverAdditionalRuntimeClasspath "maven.modrinth:farmers-delight:${farmersdelight_version}"
+    }
+
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.2'
     testImplementation 'org.junit.jupiter:junit-jupiter-params:5.10.2'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+
+if (withFD) {
+    def prepareFD = tasks.register('prepareFarmersDelightMods') {
+        doLast {
+            def fdJar = configurations.farmersDelightMod.singleFile
+            file('run/mods').mkdirs()
+            copy {
+                from fdJar
+                into 'run/mods'
+                rename { "FarmersDelight-${farmersdelight_version}.jar" }
+            }
+        }
+    }
+
+    def cleanupFD = tasks.register('cleanupFarmersDelightMods') {
+        doLast {
+            delete fileTree('run/mods') {
+                include 'FarmersDelight*.jar', 'farmers-delight*.jar'
+            }
+        }
+    }
+
+    tasks.named('writeServerLegacyClasspath').configure {
+        doLast {
+            def file = legacyClasspathFile.get().asFile
+            if (file.exists()) {
+                def lines = file.readLines().findAll { !it.contains('farmers-delight') }
+                file.text = lines.join('\n') + '\n'
+            }
+        }
+    }
+
+    tasks.named('writeClientLegacyClasspath').configure {
+        doLast {
+            def file = legacyClasspathFile.get().asFile
+            if (file.exists()) {
+                def lines = file.readLines().findAll { !it.contains('farmers-delight') }
+                file.text = lines.join('\n') + '\n'
+            }
+        }
+    }
+
+    tasks.named('runServer', JavaExec).configure {
+        dependsOn prepareFD
+        finalizedBy cleanupFD
+    }
+
+    tasks.named('runClient', JavaExec).configure {
+        dependsOn prepareFD
+        finalizedBy cleanupFD
+    }
+}
+
 
 tasks.withType(Test).configureEach {
     useJUnitPlatform()

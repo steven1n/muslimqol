@@ -1,0 +1,24 @@
+{
+  "values": [
+    {
+      "item": "farmersdelight:apple_cider",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:melon_juice",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:milk_bottle",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "farmersdelight:hot_cocoa",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    }
+  ]
+}

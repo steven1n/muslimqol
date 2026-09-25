@@ -1,0 +1,54 @@
+{
+  "values": [
+    {
+      "item": "farmersdelight:cod_slice",
+      "status": "HALAL",
+      "reason": "fish"
+    },
+    {
+      "item": "farmersdelight:cooked_cod_slice",
+      "status": "HALAL",
+      "reason": "fish"
+    },
+    {
+      "item": "farmersdelight:salmon_slice",
+      "status": "HALAL",
+      "reason": "fish"
+    },
+    {
+      "item": "farmersdelight:cooked_salmon_slice",
+      "status": "HALAL",
+      "reason": "fish"
+    },
+    {
+      "item": "farmersdelight:cod_roll",
+      "status": "HALAL",
+      "reason": "fish"
+    },
+    {
+      "item": "farmersdelight:salmon_roll",
+      "status": "HALAL",
+      "reason": "fish"
+    },
+    {
+      "item": "farmersdelight:rice_roll_medley_block",
+      "status": "HALAL",
+      "reason": "fish"
+    },
+    {
+      "item": "farmersdelight:fish_stew",
+      "status": "HALAL",
+      "reason": "fish"
+    },
+    {
+      "item": "farmersdelight:baked_cod_stew",
+      "status": "HALAL",
+      "reason": "fish"
+    },
+    {
+      "item": "farmersdelight:grilled_salmon",
+      "status": "HALAL",
+      "reason": "fish"
+    }
+  ]
+}

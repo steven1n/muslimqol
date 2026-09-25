@@ -1,0 +1,29 @@
+{
+  "values": [
+    {
+      "item": "farmersdelight:barbecue_stick",
+      "status": "DOUBTFUL",
+      "reason": "unknown_ingredients"
+    },
+    {
+      "item": "farmersdelight:dumplings",
+      "status": "DOUBTFUL",
+      "reason": "unknown_ingredients"
+    },
+    {
+      "item": "farmersdelight:cabbage_rolls",
+      "status": "DOUBTFUL",
+      "reason": "unknown_ingredients"
+    },
+    {
+      "item": "farmersdelight:bone_broth",
+      "status": "DOUBTFUL",
+      "reason": "unknown_ingredients"
+    },
+    {
+      "item": "farmersdelight:nether_salad",
+      "status": "DOUBTFUL",
+      "reason": "toxic_plant"
+    }
+  ]
+}

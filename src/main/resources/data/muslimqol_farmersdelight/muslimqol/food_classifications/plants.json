@@ -1,0 +1,64 @@
+{
+  "values": [
+    {
+      "item": "farmersdelight:cabbage",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:cabbage_leaf",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:tomato",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:tomato_sauce",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:onion",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:pumpkin_slice",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:cooked_rice",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:wheat_dough",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "farmersdelight:raw_pasta",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "farmersdelight:pie_crust",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "farmersdelight:kelp_roll",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:kelp_roll_slice",
+      "status": "HALAL",
+      "reason": "plant_based"
+    }
+  ]
+}

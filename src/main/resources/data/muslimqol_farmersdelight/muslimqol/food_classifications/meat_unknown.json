@@ -1,0 +1,104 @@
+{
+  "values": [
+    {
+      "item": "farmersdelight:minced_beef",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:beef_patty",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:hamburger",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:beef_stew",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:steak_and_potatoes",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:stuffed_potato",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:pasta_with_meatballs",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:chicken_cuts",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:cooked_chicken_cuts",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:chicken_sandwich",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:chicken_soup",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:roast_chicken",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:roast_chicken_block",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:mutton_chops",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:cooked_mutton_chops",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:mutton_wrap",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:pasta_with_mutton_chop",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:roasted_mutton_chops",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:shepherds_pie",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "farmersdelight:shepherds_pie_block",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    }
+  ]
+}

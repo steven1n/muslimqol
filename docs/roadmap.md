@@ -20,7 +20,8 @@ This document outlines the architectural roadmap for MuslimQoL across current an
 - [x] Multi-provider compatibility framework with provenance tracking and conflict diagnostics (Experimental).
 - [x] Optional compatibility datapack metadata (`compatibility.json`) and missing-mod safe skipping.
 - [x] Optional JEI (Just Enough Items) compatibility via NeoForge standard tooltip pipeline and shared tooltip presentation layer.
-- Turnkey compatibility datapacks for major culinary mods (Farmer's Delight, Pam's HarvestCraft, Alex's Mobs, Aquaculture 2).
+- [x] Turnkey compatibility datapack for Farmer's Delight 1.3.4 (Minecraft 1.21.1 / NeoForge) with full 89-item audited classification dataset (`muslimqol_farmersdelight`).
+- Turnkey compatibility datapacks for additional culinary mods (Pam's HarvestCraft, Alex's Mobs, Aquaculture 2).
 - EMI recipe status indicators.
 
 ### v0.3 — Qibla Direction System

@@ -1,0 +1,64 @@
+{
+  "values": [
+    {
+      "item": "farmersdelight:sweet_berry_cookie",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:honey_cookie",
+      "status": "HALAL",
+      "reason": "honey"
+    },
+    {
+      "item": "farmersdelight:glow_berry_custard",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "farmersdelight:melon_popsicle",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:apple_pie",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "farmersdelight:apple_pie_slice",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "farmersdelight:sweet_berry_cheesecake",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "farmersdelight:sweet_berry_cheesecake_slice",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "farmersdelight:chocolate_pie",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "farmersdelight:chocolate_pie_slice",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "farmersdelight:cake_slice",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "farmersdelight:pumpkin_pie_slice",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    }
+  ]
+}

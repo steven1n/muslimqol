@@ -1,0 +1,9 @@
+{
+  "values": [
+    {
+      "item": "farmersdelight:dog_food",
+      "status": "RESTRICTED",
+      "reason": "carrion"
+    }
+  ]
+}
