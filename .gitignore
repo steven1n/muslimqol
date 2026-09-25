@@ -20,3 +20,4 @@ run-data/
 run-server/
 crash-reports/
 logs/
+*.log

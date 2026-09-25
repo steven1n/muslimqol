@@ -56,6 +56,10 @@ neoForge {
     }
 }
 
+tasks.named('runServer', JavaExec).configure {
+    standardInput = System.in
+}
+
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 configurations {

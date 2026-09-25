@@ -68,7 +68,7 @@ public final class FoodOverlayRenderer {
 
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
-            guiGraphics.blit(texture, xOffset + 9, yOffset, 0, 0, 7, 7, 7, 7);
+            guiGraphics.blit(texture, xOffset + 8, yOffset, 8, 8, 0.0f, 0.0f, 16, 16, 16, 16);
             RenderSystem.disableBlend();
             return true;
         }
