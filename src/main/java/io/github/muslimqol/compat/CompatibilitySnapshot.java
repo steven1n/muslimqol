@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -28,6 +29,7 @@ public final class CompatibilitySnapshot {
     private static final Logger LOGGER = LoggerFactory.getLogger(CompatibilitySnapshot.class);
 
     private final List<FoodClassificationProvider> providers;
+    private final List<List<FoodClassificationProvider>> tierGroups;
     private final Map<String, CompatibilityMetadata> activePacks;
     private final Map<String, CompatibilityMetadata> skippedPacks;
 
@@ -45,6 +47,16 @@ public final class CompatibilitySnapshot {
             return a.id().compareTo(b.id());
         });
         this.providers = Collections.unmodifiableList(sorted);
+
+        // Pre-group providers into priority tiers for fast-path short-circuiting
+        Map<Integer, List<FoodClassificationProvider>> groups = new LinkedHashMap<>();
+        for (FoodClassificationProvider p : this.providers) {
+            groups.computeIfAbsent(p.priority().level(), k -> new ArrayList<>()).add(p);
+        }
+        List<List<FoodClassificationProvider>> tiers = new ArrayList<>();
+        groups.values().forEach(list -> tiers.add(Collections.unmodifiableList(list)));
+        this.tierGroups = Collections.unmodifiableList(tiers);
+
         this.activePacks = activePacks == null ? Map.of() : Map.copyOf(activePacks);
         this.skippedPacks = skippedPacks == null ? Map.of() : Map.copyOf(skippedPacks);
     }
@@ -120,10 +132,45 @@ public final class CompatibilitySnapshot {
     }
 
     /**
-     * Fast-path lookup returning only the resolved classification.
+     * Allocation-light fast-path lookup returning only the resolved classification.
+     * Evaluates strictly tier-by-tier and short-circuits immediately when a winning tier matches.
      */
     public FoodClassification classify(ResourceLocation itemId, ItemStack stack) {
-        return resolve(itemId, stack).selected();
+        if (itemId == null) {
+            return FoodClassification.unknown();
+        }
+
+        for (List<FoodClassificationProvider> tier : tierGroups) {
+            FoodClassification tierWinner = null;
+            ClassificationProviderId bestId = null;
+
+            for (FoodClassificationProvider provider : tier) {
+                try {
+                    List<FoodClassification> list = provider.classifyAll(itemId, stack);
+                    if (list != null && !list.isEmpty()) {
+                        for (FoodClassification raw : list) {
+                            if (raw == null) continue;
+                            FoodClassification normalized = normalize(provider, raw);
+                            ClassificationProviderId effectiveId = normalized.providerId();
+                            if (tierWinner == null || effectiveId.compareTo(bestId) < 0) {
+                                tierWinner = normalized;
+                                bestId = effectiveId;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    LOGGER.warn("Classification provider '{}' encountered an error evaluating {}: {}",
+                            provider.id(), itemId, e.getMessage());
+                }
+            }
+
+            // If any provider in this priority tier matched, this tier definitively wins over all lower tiers
+            if (tierWinner != null) {
+                return tierWinner;
+            }
+        }
+
+        return FoodClassification.unknown();
     }
 
     /**
