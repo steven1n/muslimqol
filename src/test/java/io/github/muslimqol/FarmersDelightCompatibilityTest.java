@@ -58,6 +58,7 @@ class FarmersDelightCompatibilityTest {
             "pork.json",
             "carrion.json",
             "meat_unknown.json",
+            "seafood_unknown.json",
             "doubtful.json",
             "fish.json",
             "plants.json",
@@ -71,7 +72,10 @@ class FarmersDelightCompatibilityTest {
         try {
             net.minecraft.SharedConstants.tryDetectVersion();
             net.minecraft.server.Bootstrap.bootStrap();
-        } catch (Throwable ignored) {}
+        } catch (Exception | ExceptionInInitializerError ignored) {
+            // Tolerant initialization: in isolated unit test runners, FeatureFlagLoader may throw
+            // ExceptionInInitializerError due to uninitialized LoadingModList.
+        }
     }
 
     @BeforeEach
@@ -165,9 +169,26 @@ class FarmersDelightCompatibilityTest {
             }
         }
 
-        // Complete audit set of 89 edible items
-        assertEquals(89, totalItemsCount, "All 89 audited edible Farmer's Delight items must be declared");
-        assertEquals(89, declaredItems.size(), "All 89 items must be unique");
+        // Complete audit set of 89 edible items verified against frozen reference manifest
+        InputStream refStream = getClass().getResourceAsStream("/reference/farmers-delight-1.3.4-edible-items.json");
+        assertNotNull(refStream, "Frozen reference manifest must exist in test resources");
+        Set<ResourceLocation> referenceItems = new HashSet<>();
+        try (var refReader = new InputStreamReader(refStream, StandardCharsets.UTF_8)) {
+            JsonObject refObj = JsonParser.parseReader(refReader).getAsJsonObject();
+            assertEquals("farmersdelight", refObj.get("mod").getAsString());
+            assertEquals("1.21.1-1.3.4", refObj.get("version").getAsString());
+            assertEquals("139ad7696462c89c03eea463f805abffa552526c5dadaadae221dd9624cb197c",
+                    refObj.get("jar_sha256").getAsString());
+            JsonArray itemsArray = refObj.getAsJsonArray("items");
+            for (JsonElement itemElem : itemsArray) {
+                referenceItems.add(ResourceLocation.parse(itemElem.getAsString()));
+            }
+        }
+
+        assertEquals(referenceItems.size(), totalItemsCount,
+                "Total item count must match reference manifest count");
+        assertEquals(referenceItems, declaredItems,
+                "Declared items must exactly equal the frozen reference manifest set");
     }
 
     // ── 3. Loader & Namespace Filtering ────────────────────────────────────────
@@ -219,6 +240,16 @@ class FarmersDelightCompatibilityTest {
         assertNotNull(parsed.get(codSliceId));
         assertEquals(FoodStatus.HALAL, parsed.get(codSliceId).get(0).status());
         assertEquals("fish", parsed.get(codSliceId).get(0).reason());
+
+        ResourceLocation squidPastaId = ResourceLocation.parse("farmersdelight:squid_ink_pasta");
+        assertNotNull(parsed.get(squidPastaId));
+        assertEquals(FoodStatus.UNKNOWN, parsed.get(squidPastaId).get(0).status());
+        assertEquals("seafood_policy_unspecified", parsed.get(squidPastaId).get(0).reason());
+
+        ResourceLocation friedEggId = ResourceLocation.parse("farmersdelight:fried_egg");
+        assertNotNull(parsed.get(friedEggId));
+        assertEquals(FoodStatus.HALAL, parsed.get(friedEggId).get(0).status());
+        assertEquals("audited_permitted_recipe", parsed.get(friedEggId).get(0).reason());
     }
 
     @Test
@@ -304,11 +335,38 @@ class FarmersDelightCompatibilityTest {
             }
         }
 
-        assertEquals(53, halalCount, "HALAL items count");
+        assertEquals(52, halalCount, "HALAL items count");
         assertEquals(11, restrictedCount, "RESTRICTED items count");
         assertEquals(5, doubtfulCount, "DOUBTFUL items count");
-        assertEquals(20, unknownCount, "UNKNOWN items count");
+        assertEquals(21, unknownCount, "UNKNOWN items count");
         assertEquals(89, halalCount + restrictedCount + doubtfulCount + unknownCount);
+    }
+
+    @Test
+    void testSquidInkPastaProvenance() {
+        Map<ResourceLocation, JsonElement> jsonMap = loadAllBundledJson();
+        Map<String, CompatibilityMetadata> activePacks = Map.of(
+                NAMESPACE, new CompatibilityMetadata(1, "Farmer's Delight Compatibility", TARGET_MOD)
+        );
+
+        Map<ResourceLocation, List<FoodClassification>> parsed =
+                FoodClassificationJsonLoader.parseAllMulti(jsonMap, activePacks, Map.of());
+
+        ResourceLocation squidPastaId = ResourceLocation.parse("farmersdelight:squid_ink_pasta");
+        List<FoodClassification> entries = parsed.get(squidPastaId);
+        assertNotNull(entries);
+        assertFalse(entries.isEmpty());
+
+        FoodClassification classification = entries.get(0);
+        assertEquals(FoodStatus.UNKNOWN, classification.status());
+        assertEquals("seafood_policy_unspecified", classification.reason());
+        assertEquals(NAMESPACE, classification.providerId().id().getNamespace());
+
+        ClassificationRuleId ruleId = classification.ruleId();
+        assertNotNull(ruleId);
+        assertEquals(NAMESPACE, ruleId.id().getNamespace());
+        assertEquals("food_classifications/seafood_unknown", ruleId.id().getPath());
+        assertEquals(ClassificationPriority.DATAPACK, classification.priority());
     }
 
     // ── Helper ─────────────────────────────────────────────────────────────────
