@@ -1,5 +1,6 @@
 package io.github.muslimqol.compat;
 
+import io.github.muslimqol.api.ClassificationProviderId;
 import io.github.muslimqol.api.ClassificationResolution;
 import io.github.muslimqol.api.FoodClassification;
 import io.github.muslimqol.api.FoodClassificationCandidate;
@@ -18,6 +19,9 @@ import java.util.Optional;
 
 /**
  * Immutable, thread-safe snapshot of active classification providers and compatibility metadata.
+ * <p>
+ * Provides both an allocation-light fast path for in-game hot paths (tooltips, overlays, eating checks)
+ * and a full diagnostic resolution path for commands and debugging.
  */
 public final class CompatibilitySnapshot {
 
@@ -33,7 +37,7 @@ public final class CompatibilitySnapshot {
             Map<String, CompatibilityMetadata> skippedPacks
     ) {
         Objects.requireNonNull(providers, "providers must not be null");
-        // Sort providers deterministically: higher priority tier first, then providerId
+        // Sort providers deterministically: higher priority level first, then providerId lexicographically
         List<FoodClassificationProvider> sorted = new ArrayList<>(providers);
         sorted.sort((a, b) -> {
             int p = Integer.compare(b.priority().level(), a.priority().level());
@@ -69,18 +73,21 @@ public final class CompatibilitySnapshot {
 
         for (FoodClassificationProvider provider : providers) {
             try {
-                Optional<FoodClassification> opt = provider.classify(itemId, stack);
-                if (opt.isPresent()) {
-                    FoodClassification classification = opt.get();
-                    candidates.add(new FoodClassificationCandidate(
-                            provider.id(),
-                            classification,
-                            provider.priority()
-                    ));
+                List<FoodClassification> list = provider.classifyAll(itemId, stack);
+                if (list != null && !list.isEmpty()) {
+                    for (FoodClassification raw : list) {
+                        if (raw == null) continue;
+                        FoodClassification normalized = normalize(provider, raw);
+                        candidates.add(new FoodClassificationCandidate(
+                                normalized.providerId(),
+                                normalized,
+                                normalized.priority()
+                        ));
+                    }
                 }
-            } catch (Throwable t) {
+            } catch (Exception e) {
                 LOGGER.warn("Classification provider '{}' encountered an error evaluating {}: {}",
-                        provider.id(), itemId, t.getMessage());
+                        provider.id(), itemId, e.getMessage());
             }
         }
 
@@ -117,5 +124,35 @@ public final class CompatibilitySnapshot {
      */
     public FoodClassification classify(ResourceLocation itemId, ItemStack stack) {
         return resolve(itemId, stack).selected();
+    }
+
+    /**
+     * Normalizes a returned classification against authoritative provider registration metadata.
+     * Guarantees that a provider cannot impersonate an unauthorized priority tier or identity.
+     */
+    private FoodClassification normalize(FoodClassificationProvider provider, FoodClassification raw) {
+        if (raw == null) {
+            return FoodClassification.unknown();
+        }
+
+        boolean priorityMatches = raw.priority() == provider.priority();
+        // Allow datapack multi-pack providers to specify their pack-specific namespace
+        boolean idMatches = provider.id().equals(raw.providerId()) ||
+                (provider.id().equals(ClassificationProviderId.DATAPACK) && !raw.providerId().equals(ClassificationProviderId.BUILTIN));
+
+        if (priorityMatches && idMatches) {
+            return raw;
+        }
+
+        LOGGER.debug("Normalizing classification for provider '{}': registered priority {} overrides returned priority {}",
+                provider.id(), provider.priority(), raw.priority());
+
+        return new FoodClassification(
+                raw.status(),
+                raw.reason(),
+                raw.source(),
+                idMatches ? raw.providerId() : provider.id(),
+                provider.priority() // registered provider priority is ALWAYS authoritative
+        );
     }
 }

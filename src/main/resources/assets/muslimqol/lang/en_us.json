@@ -31,6 +31,8 @@
   "commands.muslimqol.classify.result": "Item: %s\nStatus: %s\nSource: %s\nReason: %s",
   "commands.muslimqol.classify.header": "Item: %s | Resolved: %s",
   "commands.muslimqol.classify.winner": "Winner:\n  Source: %s\n  Type: %s\n  Priority: %s\n  Reason: %s",
+  "commands.muslimqol.classify.winner_fallback": "Winner: Fallback: No classification available",
+  "commands.muslimqol.classify.candidates_none": "Candidates: none",
   "commands.muslimqol.classify.candidates_header": "Candidates / Overridden:",
   "commands.muslimqol.classify.conflict": "Conflict: %s",
   "commands.muslimqol.providers.header": "Registered classification providers:",

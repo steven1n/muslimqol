@@ -78,24 +78,29 @@ public class MuslimQolCommands {
                 winner.status().name()
         ), false);
 
-        source.sendSuccess(() -> Component.translatable(
-                "commands.muslimqol.classify.winner",
-                winner.providerId().toString(),
-                winner.source().name(),
-                winner.priority().name(),
-                winner.reason()
-        ), false);
-
-        if (resolution.candidates().size() > 1) {
-            source.sendSuccess(() -> Component.translatable("commands.muslimqol.classify.candidates_header"), false);
-            for (FoodClassificationCandidate candidate : resolution.candidates()) {
-                boolean isWinner = candidate.classification() == winner;
-                String tag = isWinner ? " [WINNER]" : " (priority: " + candidate.priority().name() + ")";
-                source.sendSuccess(() -> Component.literal("  " + candidate.classification().status().name()
-                        + " <- " + candidate.providerId().toString() + tag), false);
-            }
+        if (resolution.candidates().isEmpty()) {
+            source.sendSuccess(() -> Component.translatable("commands.muslimqol.classify.winner_fallback"), false);
+            source.sendSuccess(() -> Component.translatable("commands.muslimqol.classify.candidates_none"), false);
         } else {
-            source.sendSuccess(() -> Component.literal("Candidates:\n  " + winner.status().name() + " <- " + winner.providerId().toString()), false);
+            source.sendSuccess(() -> Component.translatable(
+                    "commands.muslimqol.classify.winner",
+                    winner.providerId().toString(),
+                    winner.source().name(),
+                    winner.priority().name(),
+                    winner.reason()
+            ), false);
+
+            if (resolution.candidates().size() > 1) {
+                source.sendSuccess(() -> Component.translatable("commands.muslimqol.classify.candidates_header"), false);
+                for (FoodClassificationCandidate candidate : resolution.candidates()) {
+                    boolean isWinner = candidate.classification() == winner;
+                    String tag = isWinner ? " [WINNER]" : " (priority: " + candidate.priority().name() + ")";
+                    source.sendSuccess(() -> Component.literal("  " + candidate.classification().status().name()
+                            + " <- " + candidate.providerId().toString() + tag), false);
+                }
+            } else {
+                source.sendSuccess(() -> Component.literal("Candidates:\n  " + winner.status().name() + " <- " + winner.providerId().toString()), false);
+            }
         }
 
         String conflictStr = resolution.conflicted() ? "YES" : "no";
