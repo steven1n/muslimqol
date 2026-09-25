@@ -20,6 +20,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -76,8 +77,8 @@ public class FoodClassificationReloadListener extends SimpleJsonResourceReloadLi
         }
 
         FoodCompatibilityManager.updateCompatibilityPacks(activePacks, skippedPacks);
-        Map<ResourceLocation, FoodClassification> parsed = FoodClassificationJsonLoader.parseAll(jsonMap, activePacks, skippedPacks);
-        FoodClassificationRegistry.setDatapackClassifications(parsed);
+        Map<ResourceLocation, List<FoodClassification>> parsed = FoodClassificationJsonLoader.parseAllMulti(jsonMap, activePacks, skippedPacks);
+        FoodClassificationRegistry.setDatapackMultiClassifications(parsed);
         FoodClassificationRegistry.reloadUserOverridesFromConfig();
     }
 }

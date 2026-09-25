@@ -5,6 +5,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.ApiStatus;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -40,6 +41,22 @@ public interface FoodClassificationProvider {
      */
     default Optional<FoodClassification> classify(ResourceLocation itemId) {
         return classify(itemId, null);
+    }
+
+    /**
+     * Returns all candidate classifications this provider can contribute for the given item.
+     * Most single-source providers return a singleton list containing {@link #classify}.
+     * Multi-pack or aggregate providers (like datapacks) may return multiple rules.
+     */
+    default List<FoodClassification> classifyAll(ResourceLocation itemId, ItemStack stack) {
+        return classify(itemId, stack).map(List::of).orElse(List.of());
+    }
+
+    /**
+     * Convenience method to classify all candidates by registry key alone.
+     */
+    default List<FoodClassification> classifyAll(ResourceLocation itemId) {
+        return classifyAll(itemId, null);
     }
 
     /**

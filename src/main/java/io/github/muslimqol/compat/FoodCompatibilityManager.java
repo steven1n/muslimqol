@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
@@ -28,6 +29,16 @@ import java.util.function.Predicate;
 public final class FoodCompatibilityManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FoodCompatibilityManager.class);
+
+    /**
+     * Reserved system provider IDs that cannot be unregistered or overwritten by third-party code.
+     */
+    public static final Set<ClassificationProviderId> RESERVED_IDS = Set.of(
+            ClassificationProviderId.USER_OVERRIDE,
+            ClassificationProviderId.DATAPACK,
+            ClassificationProviderId.ITEM_TAG,
+            ClassificationProviderId.BUILTIN
+    );
 
     // Default ModList loader checker safely guarded against offline test execution
     private static Predicate<String> modLoadedChecker = FoodCompatibilityManager::defaultIsModLoaded;
@@ -51,7 +62,7 @@ public final class FoodCompatibilityManager {
         try {
             var modList = net.neoforged.fml.ModList.get();
             return modList != null && modList.isLoaded(modId);
-        } catch (Throwable ignored) {
+        } catch (Exception ignored) {
             return false;
         }
     }
@@ -65,6 +76,10 @@ public final class FoodCompatibilityManager {
             return true;
         }
         return modLoadedChecker.test(modId);
+    }
+
+    public static boolean isReserved(ClassificationProviderId id) {
+        return id != null && RESERVED_IDS.contains(id);
     }
 
     private static synchronized void registerDefaultProviders() {
@@ -88,7 +103,7 @@ public final class FoodCompatibilityManager {
             }
         });
 
-        // 2. Datapack Provider
+        // 2. Datapack Provider (preserves all multi-pack candidate classifications)
         REGISTERED_PROVIDERS.put(ClassificationProviderId.DATAPACK, new FoodClassificationProvider() {
             @Override
             public ClassificationProviderId id() {
@@ -103,6 +118,11 @@ public final class FoodCompatibilityManager {
             @Override
             public Optional<FoodClassification> classify(ResourceLocation itemId, ItemStack stack) {
                 return FoodClassificationRegistry.getDatapackClassification(itemId);
+            }
+
+            @Override
+            public List<FoodClassification> classifyAll(ResourceLocation itemId, ItemStack stack) {
+                return FoodClassificationRegistry.getDatapackClassifications(itemId);
             }
         });
 
@@ -156,9 +176,14 @@ public final class FoodCompatibilityManager {
 
     /**
      * Registers a new custom food classification provider and updates the active snapshot.
+     *
+     * @throws IllegalArgumentException if the provider attempts to use a reserved system provider ID.
      */
     public static synchronized void registerProvider(FoodClassificationProvider provider) {
         Objects.requireNonNull(provider, "provider must not be null");
+        if (isReserved(provider.id())) {
+            throw new IllegalArgumentException("Cannot register custom provider with reserved system ID: " + provider.id());
+        }
         REGISTERED_PROVIDERS.put(provider.id(), provider);
         rebuildSnapshot();
         LOGGER.info("Registered food classification provider '{}' (priority {})",
@@ -166,10 +191,17 @@ public final class FoodCompatibilityManager {
     }
 
     /**
-     * Unregisters a provider by its ID.
+     * Unregisters a custom provider by its ID.
+     * Reserved system providers cannot be unregistered.
+     *
+     * @return true if a provider was removed, false otherwise
      */
     public static synchronized boolean unregisterProvider(ClassificationProviderId id) {
         if (id == null) return false;
+        if (isReserved(id)) {
+            LOGGER.warn("Cannot unregister reserved system provider '{}'", id);
+            return false;
+        }
         if (REGISTERED_PROVIDERS.remove(id) != null) {
             rebuildSnapshot();
             LOGGER.info("Unregistered food classification provider '{}'", id);

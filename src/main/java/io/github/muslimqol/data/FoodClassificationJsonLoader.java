@@ -14,12 +14,16 @@ import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Parses JSON configurations into FoodClassification mappings with support for
- * namespace-based compatibility pack filtering.
+ * namespace-based compatibility pack filtering and multi-candidate conflict preservation.
  */
 public final class FoodClassificationJsonLoader {
 
@@ -28,21 +32,46 @@ public final class FoodClassificationJsonLoader {
     private FoodClassificationJsonLoader() {}
 
     /**
-     * Legacy parseAll for v0.1 compatibility.
+     * Legacy parseAll for v0.1 compatibility returning primary single-entry mappings.
      */
     public static Map<ResourceLocation, FoodClassification> parseAll(Map<ResourceLocation, JsonElement> jsonMap) {
         return parseAll(jsonMap, Map.of(), Map.of());
     }
 
     /**
-     * Parses all json entries while skipping namespaces whose target mods are not loaded.
+     * Parses all json entries into single-entry mappings (v0.1 backward-compatible).
      */
     public static Map<ResourceLocation, FoodClassification> parseAll(
             Map<ResourceLocation, JsonElement> jsonMap,
             Map<String, CompatibilityMetadata> activePacks,
             Map<String, CompatibilityMetadata> skippedPacks
     ) {
+        Map<ResourceLocation, List<FoodClassification>> multi = parseAllMulti(jsonMap, activePacks, skippedPacks);
         Map<ResourceLocation, FoodClassification> result = new HashMap<>();
+        multi.forEach((id, list) -> {
+            if (list != null && !list.isEmpty()) {
+                result.put(id, list.get(0));
+            }
+        });
+        return result;
+    }
+
+    /**
+     * Parses all json entries preserving all candidate classifications per item across multiple datapacks.
+     */
+    public static Map<ResourceLocation, List<FoodClassification>> parseAllMulti(Map<ResourceLocation, JsonElement> jsonMap) {
+        return parseAllMulti(jsonMap, Map.of(), Map.of());
+    }
+
+    /**
+     * Parses all json entries into multi-candidate mappings, skipping namespaces whose target mods are not loaded.
+     */
+    public static Map<ResourceLocation, List<FoodClassification>> parseAllMulti(
+            Map<ResourceLocation, JsonElement> jsonMap,
+            Map<String, CompatibilityMetadata> activePacks,
+            Map<String, CompatibilityMetadata> skippedPacks
+    ) {
+        Map<ResourceLocation, List<FoodClassification>> result = new HashMap<>();
 
         if (jsonMap == null) {
             return result;
@@ -68,10 +97,18 @@ public final class FoodClassificationJsonLoader {
             parseEntry(fileId, obj, result);
         }
 
-        return result;
+        // Sort candidates deterministically by providerId
+        Map<ResourceLocation, List<FoodClassification>> sortedResult = new HashMap<>();
+        result.forEach((id, list) -> {
+            List<FoodClassification> copy = new ArrayList<>(list);
+            copy.sort(Comparator.comparing(c -> c.providerId().toString()));
+            sortedResult.put(id, Collections.unmodifiableList(copy));
+        });
+
+        return Collections.unmodifiableMap(sortedResult);
     }
 
-    private static void parseEntry(ResourceLocation fileId, JsonObject obj, Map<ResourceLocation, FoodClassification> result) {
+    private static void parseEntry(ResourceLocation fileId, JsonObject obj, Map<ResourceLocation, List<FoodClassification>> result) {
         // Multi-entry array: "values": [ { ... }, { ... } ]
         if (obj.has("values") && obj.get("values").isJsonArray()) {
             JsonArray array = obj.getAsJsonArray("values");
@@ -99,7 +136,7 @@ public final class FoodClassificationJsonLoader {
         parseSingleObject(fileId, obj, result);
     }
 
-    private static void parseSingleObject(ResourceLocation fallbackId, JsonObject obj, Map<ResourceLocation, FoodClassification> result) {
+    private static void parseSingleObject(ResourceLocation fallbackId, JsonObject obj, Map<ResourceLocation, List<FoodClassification>> result) {
         ResourceLocation targetId = fallbackId;
         if (obj.has("item")) {
             String itemStr = obj.get("item").getAsString();
@@ -133,12 +170,14 @@ public final class FoodClassificationJsonLoader {
                 ? ClassificationProviderId.of(fallbackId.getNamespace(), "datapack")
                 : ClassificationProviderId.DATAPACK;
 
-        result.put(targetId, new FoodClassification(
+        FoodClassification classification = new FoodClassification(
                 status,
                 reason,
                 ClassificationSource.DATAPACK,
                 providerId,
                 ClassificationPriority.DATAPACK
-        ));
+        );
+
+        result.computeIfAbsent(targetId, k -> new ArrayList<>()).add(classification);
     }
 }
