@@ -3,19 +3,33 @@ package io.github.muslimqol.data;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import io.github.muslimqol.api.FoodClassification;
+import io.github.muslimqol.compat.ClassificationRuntimeState;
+import io.github.muslimqol.compat.CompatibilityMetadata;
+import io.github.muslimqol.compat.FoodCompatibilityManager;
+import io.github.muslimqol.compat.MetadataParseResult;
 import io.github.muslimqol.food.FoodClassificationRegistry;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /**
- * Reload listener loading food classification JSON data from datapacks under `data/<namespace>/muslimqol/food_classifications/`.
+ * Reload listener loading food classification JSON data from datapacks under `data/<namespace>/muslimqol/food_classifications/`
+ * with optional compatibility pack metadata under `data/<namespace>/muslimqol/compatibility.json`.
  */
 public class FoodClassificationReloadListener extends SimpleJsonResourceReloadListener {
 
@@ -29,8 +43,74 @@ public class FoodClassificationReloadListener extends SimpleJsonResourceReloadLi
     @Override
     protected void apply(Map<ResourceLocation, JsonElement> jsonMap, ResourceManager resourceManager, ProfilerFiller profiler) {
         LOGGER.info("Applying food classifications from datapacks...");
-        Map<ResourceLocation, FoodClassification> parsed = FoodClassificationJsonLoader.parseAll(jsonMap);
-        FoodClassificationRegistry.setDatapackClassifications(parsed);
-        FoodClassificationRegistry.reloadUserOverridesFromConfig();
+
+        Map<String, CompatibilityMetadata> activePacks = new HashMap<>();
+        Map<String, CompatibilityMetadata> skippedPacks = new HashMap<>();
+
+        if (jsonMap != null && resourceManager != null) {
+            Set<String> namespaces = new HashSet<>();
+            for (ResourceLocation id : jsonMap.keySet()) {
+                namespaces.add(id.getNamespace());
+            }
+
+            for (String namespace : namespaces) {
+                ResourceLocation metaLoc = ResourceLocation.fromNamespaceAndPath(namespace, "muslimqol/compatibility.json");
+                Optional<Resource> res = resourceManager.getResource(metaLoc);
+                MetadataParseResult parseResult;
+                if (res.isPresent()) {
+                    try (var reader = new InputStreamReader(res.get().open(), StandardCharsets.UTF_8)) {
+                        JsonElement parsed = GSON.fromJson(reader, JsonElement.class);
+                        if (parsed != null && parsed.isJsonObject()) {
+                            parseResult = CompatibilityMetadata.parse(parsed.getAsJsonObject());
+                        } else {
+                            parseResult = MetadataParseResult.invalid("Root element is not a JSON object");
+                        }
+                    } catch (Exception e) {
+                        LOGGER.warn("Failed to parse compatibility metadata from {}: {}", metaLoc, e.getMessage());
+                        parseResult = MetadataParseResult.invalid("Malformed JSON: " + e.getMessage());
+                    }
+                } else {
+                    parseResult = MetadataParseResult.absent();
+                }
+
+                if (parseResult instanceof MetadataParseResult.Valid valid) {
+                    CompatibilityMetadata meta = valid.metadata();
+                    if (meta.targetMod() != null && !FoodCompatibilityManager.isModLoaded(meta.targetMod())) {
+                        skippedPacks.put(namespace, meta);
+                        LOGGER.info("Skipped compatibility pack '{}' ({}) because target mod '{}' is not loaded",
+                                meta.name(), namespace, meta.targetMod());
+                    } else {
+                        activePacks.put(namespace, meta);
+                        LOGGER.info("Loaded compatibility pack '{}' ({})", meta.name(), namespace);
+                    }
+                } else if (parseResult instanceof MetadataParseResult.Invalid invalid) {
+                    LOGGER.warn("Skipping compatibility classifications for namespace '{}' due to invalid metadata: {}",
+                            namespace, invalid.reason());
+                    skippedPacks.put(namespace, new CompatibilityMetadata(-1, "Invalid Metadata (" + invalid.reason() + ")", null));
+                }
+                // MetadataParseResult.Absent loads normally without entry in active or skipped packs
+            }
+        }
+
+        // Parse datapacks using active and skipped packs
+        Map<ResourceLocation, List<FoodClassification>> datapackEntries =
+                FoodClassificationJsonLoader.parseAllMulti(jsonMap, activePacks, skippedPacks);
+
+        // Parse user overrides from config
+        Map<ResourceLocation, FoodClassification> userOverrides =
+                FoodClassificationRegistry.parseUserOverridesFromConfig();
+
+        // Build COMPLETE immutable runtime state
+        ClassificationRuntimeState runtimeState = new ClassificationRuntimeState(
+                datapackEntries,
+                userOverrides,
+                activePacks,
+                skippedPacks
+        );
+
+        // Single atomic swap: readers see generation N or generation N+1, never a mixture
+        FoodClassificationRegistry.applyRuntimeState(runtimeState);
+        LOGGER.info("Applied {} datapack classification keys and {} user overrides transactionally",
+                datapackEntries.size(), userOverrides.size());
     }
 }

@@ -17,8 +17,10 @@ This document outlines the architectural roadmap for MuslimQoL across current an
 - [x] Automated unit test suite with 100% core coverage.
 
 ### v0.2 — Recipe Viewers & Compatibility Packs
-- JEI (Just Enough Items) and EMI recipe status indicators.
+- [x] Multi-provider compatibility framework with provenance tracking and conflict diagnostics (Experimental).
+- [x] Optional compatibility datapack metadata (`compatibility.json`) and missing-mod safe skipping.
 - Turnkey compatibility datapacks for major culinary mods (Farmer's Delight, Pam's HarvestCraft, Alex's Mobs, Aquaculture 2).
+- JEI (Just Enough Items) and EMI recipe status indicators.
 
 ### v0.3 — Qibla Direction System
 - Algorithmic Qibla calculation based on world spawn / cardinal anchor or configured coordinates.

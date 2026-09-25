@@ -1,9 +1,10 @@
 package io.github.muslimqol.food;
 
-import io.github.muslimqol.api.ClassificationSource;
+import io.github.muslimqol.api.ClassificationResolution;
 import io.github.muslimqol.api.ConsumptionPolicy;
 import io.github.muslimqol.api.FoodClassification;
 import io.github.muslimqol.api.FoodStatus;
+import io.github.muslimqol.compat.FoodCompatibilityManager;
 import io.github.muslimqol.config.CommonConfig;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -11,11 +12,11 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.Optional;
-
 /**
  * Core food classification engine enforcing the priority hierarchy:
  * USER_OVERRIDE -> DATAPACK -> ITEM_TAG -> BUILTIN -> UNKNOWN.
+ * <p>
+ * Delegates evaluation to {@link FoodCompatibilityManager} for unified resolution and conflict diagnostics.
  */
 public final class FoodClassifier {
 
@@ -51,10 +52,8 @@ public final class FoodClassifier {
 
     private static boolean isKnownOrClassified(ResourceLocation id, ItemStack stack) {
         if (id == null) return false;
-        if (FoodClassificationRegistry.getUserOverride(id).isPresent()) return true;
-        if (FoodClassificationRegistry.getDatapackClassification(id).isPresent()) return true;
-        if (stack != null && FoodTagResolver.resolveTag(stack).isPresent()) return true;
-        return BuiltinFoodData.getClassification(id).isPresent();
+        FoodClassification classification = FoodCompatibilityManager.classify(id, stack);
+        return classification.status() != FoodStatus.UNKNOWN;
     }
 
     /**
@@ -87,46 +86,52 @@ public final class FoodClassifier {
     }
 
     /**
-     * Internal classification resolver following strict priority:
-     * 1. USER_OVERRIDE
-     * 2. DATAPACK
-     * 3. ITEM_TAG
-     * 4. BUILTIN
-     * 5. UNKNOWN
+     * Resolves classification for an item identifier and optional stack through the compatibility manager.
      */
     public static FoodClassification classify(ResourceLocation itemId, ItemStack stack) {
         if (itemId == null) {
             return FoodClassification.unknown();
         }
+        return FoodCompatibilityManager.classify(itemId, stack);
+    }
 
-        // 1. User Override
-        Optional<FoodClassification> userOverride = FoodClassificationRegistry.getUserOverride(itemId);
-        if (userOverride.isPresent()) {
-            return userOverride.get();
+    /**
+     * Resolves classification with full provenance and conflict diagnostics.
+     */
+    public static ClassificationResolution resolve(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return ClassificationResolution.ofSingle(FoodClassification.unknown());
         }
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return resolve(itemId, stack);
+    }
 
-        // 2. Datapack
-        Optional<FoodClassification> datapack = FoodClassificationRegistry.getDatapackClassification(itemId);
-        if (datapack.isPresent()) {
-            return datapack.get();
+    /**
+     * Resolves classification with full provenance and conflict diagnostics for an Item.
+     */
+    public static ClassificationResolution resolve(Item item) {
+        if (item == null) {
+            return ClassificationResolution.ofSingle(FoodClassification.unknown());
         }
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
+        return resolve(itemId, null);
+    }
 
-        // 3. Item Tag
-        Optional<FoodClassification> tagResult = stack != null
-                ? FoodTagResolver.resolveTag(stack)
-                : FoodTagResolver.resolveTag(itemId);
-        if (tagResult.isPresent()) {
-            return tagResult.get();
+    /**
+     * Resolves classification with full provenance and conflict diagnostics for a ResourceLocation.
+     */
+    public static ClassificationResolution resolve(ResourceLocation itemId) {
+        return resolve(itemId, null);
+    }
+
+    /**
+     * Full diagnostic resolution through the compatibility engine.
+     */
+    public static ClassificationResolution resolve(ResourceLocation itemId, ItemStack stack) {
+        if (itemId == null) {
+            return ClassificationResolution.ofSingle(FoodClassification.unknown());
         }
-
-        // 4. Built-in
-        Optional<FoodClassification> builtin = BuiltinFoodData.getClassification(itemId);
-        if (builtin.isPresent()) {
-            return builtin.get();
-        }
-
-        // 5. Unknown Fallback
-        return new FoodClassification(FoodStatus.UNKNOWN, "unclassified", ClassificationSource.BUILTIN);
+        return FoodCompatibilityManager.resolve(itemId, stack);
     }
 
     /**

@@ -90,9 +90,47 @@ data/<namespace>/muslimqol/food_classifications/<filename>.json
 - `DOUBTFUL`
 - `UNKNOWN`
 
+### Multi-Datapack Candidate Preservation
+When multiple installed datapacks or rule files provide classifications for the same item:
+- Both classifications are preserved as candidates rather than being discarded by "last-write-wins" overwriting.
+- If both specify the same status, resolution succeeds cleanly without conflict.
+- If they specify differing statuses, MuslimQoL marks a conflict, retains all candidates in diagnostics (`/muslimqol classify <item>`), and breaks ties deterministically:
+  1. Priority descending (`priority DESC`)
+  2. Provider ID ascending (`providerId ASC`)
+  3. Rule ID ascending (`ruleId ASC`)
+  4. Final stable tie-breaker: `status name ASC`, followed by `reason ASC`.
+
 ---
 
-## 3. Reloading Datapacks
+## 3. Optional Compatibility Metadata (v0.2+)
+
+Compatibility datapacks targeting external mods can declare an optional metadata descriptor at:
+```text
+data/<namespace>/muslimqol/compatibility.json
+```
+
+### Schema
+
+```json
+{
+  "format": 1,
+  "name": "Farmer's Delight Compatibility",
+  "target_mod": "farmersdelight"
+}
+```
+
+### Metadata Parse Behavior
+- **Absent (No descriptor)**: The datapack is treated as a standard v0.1 legacy pack and loads unconditionally.
+- **Valid (`format: 1`)**:
+  - If `target_mod` is installed: Active and loaded.
+  - If `target_mod` is missing: Safely skipped at reload time with an informational log.
+- **Invalid (`format: 999`, unsupported version, or malformed JSON)**:
+  - MuslimQoL logs a warning and **skips all food classifications from that namespace**.
+  - Invalid metadata never falls back to legacy loading.
+
+---
+
+## 4. Reloading Datapacks & Concurrency
 
 To reload datapack classifications live in-game:
 ```text
@@ -102,3 +140,8 @@ or specifically reload MuslimQoL overrides with:
 ```text
 /muslimqol reload
 ```
+
+### Transactional Reload Guarantee
+Reloading uses transactional reference swapping via `ClassificationRuntimeState`. All datapack rules, user overrides, and compatibility metadata are parsed and assembled completely into immutable structures in memory before being swapped in a single atomic step. Game loop ticks, consumption events, and player tooltip queries never encounter partial, cleared, or hybrid intermediate states.
+
+

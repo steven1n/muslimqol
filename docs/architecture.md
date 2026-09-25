@@ -19,7 +19,7 @@ MuslimQoL adheres to non-destructive entity and item handling:
 - Drop suppression uses drop interception (`LivingDropsEvent`).
 - Third-party recipes, advancements, and mod references to vanilla identifiers remain completely uncorrupted.
 
-### 4. Deterministic Priority Cascade
+### 4. Deterministic Priority Cascade & Conflict Resolution
 Food classification queries follow a deterministic five-tier cascade:
 ```
 USER_OVERRIDE
@@ -33,7 +33,17 @@ USER_OVERRIDE
   UNKNOWN (Safe Fallback)
 ```
 
-No heuristic guessing or unverified assumptions occur. If an item cannot be resolved through one of the four explicit sources, it falls back safely to `FoodStatus.UNKNOWN`.
+- **Conflict Preservation**: If multiple datapacks or rules register conflicting statuses for an item at the `DATAPACK` tier, all candidates are preserved, `conflicted = true` is reported, and a deterministic winner is selected via strict tie-breaking: `priority DESC`, `providerId ASC`, `ruleId ASC`, `status name ASC`, `reason ASC`.
+- **Fast Path vs Full Resolution**:
+  - `FoodClassifier.classify(item)` evaluates tiers greedily and short-circuits on the winning tier without candidate collection allocations, maintaining identical tie-break behavior to `resolve`.
+  - `FoodClassifier.resolve(item)` gathers candidates across all tiers for diagnostics and debug tools.
+- **Fallback Semantics**: Unclassified items yield an empty candidate list (`candidates().isEmpty()`) and a synthetic `UNKNOWN` fallback without falsely attributing the status to built-in rules.
+
+### 5. Transactional State Swapping & Single-Generation Guarantee
+All runtime classification mappings, user overrides, active compatibility packs, and skipped compatibility packs are bundled into an immutable `ClassificationRuntimeState` record held in `FoodClassificationRegistry` via `AtomicReference`. Reload operations (`/reload`, server bootstrap) construct complete runtime states before swapping references atomically. Active queries capture a `CompatibilitySnapshot` once at initiation, guaranteeing that reader threads never observe partially populated, cleared, or hybrid intermediate states.
+
+### 6. Provider Canonicalization & Reserved IDs
+The framework prevents third-party providers from registering reserved system IDs (`muslimqol:user_override`, `muslimqol:datapack`, `muslimqol:item_tag`, `muslimqol:builtin`) or elevating their priority beyond their declared registration level.
 
 ---
 
@@ -45,8 +55,21 @@ io.github.muslimqol/
 │   ├── FoodStatus.java
 │   ├── FoodClassification.java
 │   ├── ClassificationSource.java
+│   ├── ClassificationPriority.java
+│   ├── ClassificationProviderId.java
+│   ├── ClassificationRuleId.java (Experimental v0.2)
+│   ├── FoodClassificationCandidate.java
+│   ├── ClassificationResolution.java
+│   ├── FoodClassificationProvider.java (Experimental v0.2)
 │   ├── ConsumptionPolicy.java
 │   └── PigPolicy.java
+│
+├── compat/          # Multi-provider resolution engine and compatibility management (Experimental v0.2)
+│   ├── FoodCompatibilityManager.java
+│   ├── CompatibilitySnapshot.java
+│   ├── CompatibilityMetadata.java
+│   ├── MetadataParseResult.java
+│   └── ClassificationRuntimeState.java
 │
 ├── food/            # Classification logic and builtin datasets
 │   ├── FoodClassifier.java

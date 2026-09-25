@@ -29,5 +29,13 @@
 
   "commands.muslimqol.status": "حالة MuslimQoL: حلال: %s | محظور: %s | مشتبه: %s | غير معروف: %s | سياسة الخنازير: %s",
   "commands.muslimqol.classify.result": "العنصر: %s\nالحالة: %s\nالمصدر: %s\nالسبب: %s",
+  "commands.muslimqol.classify.header": "العنصر: %s | النتيجة: %s",
+  "commands.muslimqol.classify.winner": "الفائز:\n  المصدر: %s\n  النوع: %s\n  الأولوية: %s\n  السبب: %s",
+  "commands.muslimqol.classify.winner_fallback": "الفائز: احتياطي: لا يوجد تصنيف متاح",
+  "commands.muslimqol.classify.candidates_none": "المرشحون: لا يوجد",
+  "commands.muslimqol.classify.candidates_header": "المرشحون / التجاوزات:",
+  "commands.muslimqol.classify.conflict": "تعارض: %s",
+  "commands.muslimqol.providers.header": "مزودو التصنيف المسجلون:",
+  "commands.muslimqol.providers.packs_header": "حزم التوافق:",
   "commands.muslimqol.reload.success": "تمت إعادة تحميل إعدادات وتفضيلات MuslimQoL بنجاح."
 }
