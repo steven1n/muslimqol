@@ -23,13 +23,20 @@ The framework answers five fundamental questions for any item:
 
 Every classification contributor is identified by a namespace-safe `ClassificationProviderId` wrapping a Minecraft `ResourceLocation`.
 
-Standard system identities:
+### Reserved System Identities
+The following provider IDs are reserved for MuslimQoL's internal pipeline:
 - `muslimqol:user_override`: Local player configuration overrides
 - `muslimqol:datapack`: Datapack JSON and custom rule definitions
 - `muslimqol:item_tag`: Item tags (`#muslimqol:food/*`)
 - `muslimqol:builtin`: Built-in vanilla dietary database
 
-Third-party mods and datapacks can define distinct provider identities (e.g. `farmersdelight:datapack`, `examplemod:compat_provider`).
+> [!IMPORTANT]
+> External providers cannot register using any of the reserved system IDs (`IllegalArgumentException` is thrown). Furthermore, reserved system providers cannot be unregistered.
+
+### Canonicalization & Normalization
+Third-party providers cannot spoof identity or self-promote priority. The resolution engine canonicalizes all candidate classifications returned by a provider:
+- `candidate.providerId()` is strictly bound to the provider's registered `provider.id()`.
+- `candidate.priority()` is clamped to the provider's registered `provider.priority()`.
 
 ---
 
@@ -49,36 +56,46 @@ Higher priority levels always override lower priority levels.
 
 ---
 
-## 3. Conflict Resolution & Determinism
+## 3. Conflict Resolution & Datapack Preservation
 
-When two or more providers at the same priority tier classify the same item:
+When multiple providers contribute classifications:
 
-1. **Same Status**: If both providers propose the same `FoodStatus` (e.g. both classify as `HALAL`), resolution succeeds safely without conflict.
-2. **Conflicting Status**: If providers propose conflicting statuses (e.g. `HALAL` vs `RESTRICTED` at `DATAPACK` priority), the engine:
-   - Selects a **deterministic winner** using provider ID lexicographical sorting (`providerA.id().compareTo(providerB.id())`).
-   - Flags `conflicted = true` in the diagnostic resolution model.
-   - Logs diagnostic debug information for server administrators and modders.
-3. **Determinism Guarantee**:
+1. **Datapack Multi-Candidate Preservation**:
+   If multiple datapacks classify the same item, all candidates are preserved across namespaces instead of being overwritten via "last-write-wins".
+2. **Same Status**:
+   If competing providers at the highest matching priority tier propose identical `FoodStatus`, resolution succeeds cleanly with `conflicted = false`.
+3. **Conflicting Status**:
+   If competing providers at the highest matching priority propose differing statuses (e.g. `HALAL` vs `RESTRICTED` at `DATAPACK` priority):
+   - A **deterministic winner** is selected using provider ID lexicographical order (`providerA.id().compareTo(providerB.id())`).
+   - `conflicted = true` is flagged in the `ClassificationResolution`.
+   - All competing candidates are retained in `resolution.candidates()` for inspection.
+4. **Determinism Guarantee**:
    $$\text{same input item} + \text{same provider set} = \text{same resolution every time}$$
    Resolution order does not depend on hash-map traversal or thread scheduling.
 
 ---
 
-## 4. Diagnostic Resolution Model
+## 4. Fast Path vs Diagnostic Resolution
 
-The framework separates fast gameplay lookup from rich diagnostic inspection:
+The framework provides two distinct resolution pathways:
 
 ```java
-// Fast path for gameplay events, tooltips, and rendering:
+// Fast path for gameplay events, item consumption, and tooltip rendering:
 FoodClassification classification = FoodClassifier.classify(itemStack);
 
-// Diagnostic path for commands, debuggers, and future compatibility UI:
+// Diagnostic path for commands, debug tools, and admin inspections:
 ClassificationResolution resolution = FoodClassifier.resolve(itemStack);
-
-FoodClassification winner = resolution.selected();
-List<FoodClassificationCandidate> candidates = resolution.candidates();
-boolean hasConflict = resolution.conflicted();
 ```
+
+### Performance Fast Path (`classify`)
+- Evaluates priority tiers from highest (`USER_OVERRIDE`) to lowest (`BUILTIN`).
+- **Short-circuits immediately** upon finding a match in the active tier.
+- Avoids allocating candidate lists and avoids querying lower-priority tiers when a higher tier has matched.
+
+### Diagnostic Path (`resolve`)
+- Queries all registered providers across all priority tiers.
+- Preserves all candidates in `resolution.candidates()`.
+- Calculates conflict status across candidates at the winning priority tier.
 
 ---
 
@@ -100,11 +117,13 @@ data/<namespace>/muslimqol/compatibility.json
 }
 ```
 
-### Missing Target Mod Handling
+### Format Validation
+The `format` field specifies the metadata schema version (currently `1`). Descriptors with unknown or unsupported format numbers (e.g. `999` or non-positive values) are safely rejected and logged with a warning, preventing malformed metadata from causing runtime issues.
 
+### Missing Target Mod Handling
 If `target_mod` is specified but that mod is not installed in the Minecraft instance:
 - MuslimQoL **safely skips** loading the food classifications from that namespace.
-- A single informational log entry is recorded at reload time:
+- An informational log entry is recorded at reload time:
   ```text
   Skipped compatibility pack 'Farmer's Delight Compatibility' (farmersdelight) because target mod 'farmersdelight' is not loaded
   ```
@@ -117,8 +136,9 @@ If `target_mod` is specified but that mod is not installed in the Minecraft inst
 
 ### `/muslimqol classify <item>`
 
-Provides a detailed provenance inspection:
+Provides a detailed provenance inspection.
 
+**Classified Item Output:**
 ```text
 Item: minecraft:porkchop | Resolved: RESTRICTED
 Winner:
@@ -126,10 +146,19 @@ Winner:
   Type: BUILTIN
   Priority: BUILTIN
   Reason: swine
-Candidates / Overridden:
-  RESTRICTED <- muslimqol:builtin [WINNER]
+Candidates:
+  RESTRICTED <- muslimqol:builtin
 Conflict: no
 ```
+
+**Unclassified (UNKNOWN Fallback) Output:**
+```text
+Item: examplemod:mystery_berry | Resolved: UNKNOWN
+Winner: Fallback: No classification available
+Candidates: none
+Conflict: no
+```
+*Note: Unclassified items produce an empty candidate list (`candidates() == empty`). The diagnostic command displays fallback text rather than falsely attributing the UNKNOWN status to `muslimqol:builtin`.*
 
 ### `/muslimqol providers` (or `/muslimqol compat`)
 
@@ -145,11 +174,11 @@ Registered classification providers:
 
 ---
 
-## 7. Thread-Safety & Reload Architecture
+## 7. True Atomic Reload Semantics & Concurrency
 
-All providers and compatibility metadata are bundled into an immutable `CompatibilitySnapshot`.
+MuslimQoL guarantees that readers never observe empty or partially loaded states during resource reloads (`/reload` or server startup):
 
-During a resource reload (`/reload` or server start):
-1. A fresh snapshot is built and validated in memory.
-2. The active reference is atomically updated (`AtomicReference.set(...)`).
-3. Reader threads (rendering, tooltips, server event handlers) never observe partial or inconsistent registration state.
+1. **Atomic Snapshot Swap**: All registered providers and compatibility metadata are bundled into an immutable `CompatibilitySnapshot`, stored in an `AtomicReference`.
+2. **Atomic Registry Map Swap**: Datapack classifications and user overrides in `FoodClassificationRegistry` are maintained in `AtomicReference<Map<ResourceLocation, ...>>`.
+3. **No Intermediate Cleared States**: During reload, all JSON files and datapacks are fully parsed and assembled into new immutable maps in memory before being swapped in a single atomic step.
+4. **Thread Safety**: Concurrent readers (server tick loop, item consumption events, client tooltips) always read either the complete previous state or the complete new state, never an empty or half-populated map.

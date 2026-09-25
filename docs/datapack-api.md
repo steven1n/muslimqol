@@ -90,6 +90,12 @@ data/<namespace>/muslimqol/food_classifications/<filename>.json
 - `DOUBTFUL`
 - `UNKNOWN`
 
+### Multi-Datapack Candidate Preservation
+When multiple installed datapacks provide classifications for the same item:
+- Both classifications are preserved as candidates rather than being discarded by "last-write-wins" overwriting.
+- If both specify the same status, resolution succeeds cleanly.
+- If they specify differing statuses, MuslimQoL marks a conflict, retains all candidates in diagnostics (`/muslimqol classify <item>`), and breaks ties deterministically using namespace lexicographical ordering.
+
 ---
 
 ## 3. Optional Compatibility Metadata (v0.2+)
@@ -109,13 +115,13 @@ data/<namespace>/muslimqol/compatibility.json
 }
 ```
 
-- `format`: Schema version (currently `1`).
+- `format`: Schema version. **Must be `1`**. Unsupported or future format versions (e.g. `999` or non-positive values) are safely rejected with a warning.
 - `name`: Human-readable name for diagnostics (`/muslimqol providers`).
 - `target_mod`: Optional mod ID. If specified, MuslimQoL checks if the target mod is present; if absent, the compatibility pack is safely skipped at load time without error.
 
 ---
 
-## 4. Reloading Datapacks
+## 4. Reloading Datapacks & Concurrency
 
 To reload datapack classifications live in-game:
 ```text
@@ -125,4 +131,8 @@ or specifically reload MuslimQoL overrides with:
 ```text
 /muslimqol reload
 ```
+
+### Atomic Reload Guarantee
+Reloading uses atomic reference swapping. Datapack mappings are loaded and built completely into immutable structures in memory before being swapped. Game loop ticks, consumption events, and player tooltip queries never encounter partial or cleared intermediate classification states.
+
 

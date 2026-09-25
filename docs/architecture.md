@@ -19,7 +19,7 @@ MuslimQoL adheres to non-destructive entity and item handling:
 - Drop suppression uses drop interception (`LivingDropsEvent`).
 - Third-party recipes, advancements, and mod references to vanilla identifiers remain completely uncorrupted.
 
-### 4. Deterministic Priority Cascade
+### 4. Deterministic Priority Cascade & Conflict Resolution
 Food classification queries follow a deterministic five-tier cascade:
 ```
 USER_OVERRIDE
@@ -33,7 +33,17 @@ USER_OVERRIDE
   UNKNOWN (Safe Fallback)
 ```
 
-No heuristic guessing or unverified assumptions occur. If an item cannot be resolved through one of the four explicit sources, it falls back safely to `FoodStatus.UNKNOWN`.
+- **Conflict Preservation**: If multiple datapacks register conflicting statuses for an item at the `DATAPACK` tier, all candidates are preserved, `conflicted = true` is reported, and a deterministic winner is selected via lexicographical comparison of provider IDs.
+- **Fast Path vs Full Resolution**:
+  - `FoodClassifier.classify(item)` evaluates tiers greedily and short-circuits on the winning tier without candidate collection allocations.
+  - `FoodClassifier.resolve(item)` gathers candidates across all tiers for diagnostics and debug tools.
+- **Fallback Semantics**: Unclassified items yield an empty candidate list (`candidates().isEmpty()`) and a synthetic `UNKNOWN` fallback without falsely attributing the status to built-in rules.
+
+### 5. Atomic State Swapping & Concurrency
+All runtime classification mappings in `FoodClassificationRegistry` and active provider snapshots in `FoodCompatibilityManager` are held in `AtomicReference`. Reload operations (`/reload`, server bootstrap) construct complete immutable maps before swapping references atomically. Reader threads (item consumption checks, rendering tooltips, server tick loop) never observe partially populated or cleared intermediate states.
+
+### 6. Provider Canonicalization & Reserved IDs
+The framework prevents third-party providers from registering reserved system IDs (`muslimqol:user_override`, `muslimqol:datapack`, `muslimqol:item_tag`, `muslimqol:builtin`) or elevating their priority beyond their declared registration level.
 
 ---
 
