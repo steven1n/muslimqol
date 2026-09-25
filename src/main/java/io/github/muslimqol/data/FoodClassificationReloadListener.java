@@ -5,8 +5,10 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import io.github.muslimqol.api.FoodClassification;
+import io.github.muslimqol.compat.ClassificationRuntimeState;
 import io.github.muslimqol.compat.CompatibilityMetadata;
 import io.github.muslimqol.compat.FoodCompatibilityManager;
+import io.github.muslimqol.compat.MetadataParseResult;
 import io.github.muslimqol.food.FoodClassificationRegistry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
@@ -54,31 +56,61 @@ public class FoodClassificationReloadListener extends SimpleJsonResourceReloadLi
             for (String namespace : namespaces) {
                 ResourceLocation metaLoc = ResourceLocation.fromNamespaceAndPath(namespace, "muslimqol/compatibility.json");
                 Optional<Resource> res = resourceManager.getResource(metaLoc);
+                MetadataParseResult parseResult;
                 if (res.isPresent()) {
                     try (var reader = new InputStreamReader(res.get().open(), StandardCharsets.UTF_8)) {
-                        JsonObject obj = GSON.fromJson(reader, JsonObject.class);
-                        Optional<CompatibilityMetadata> metaOpt = CompatibilityMetadata.fromJson(obj);
-                        if (metaOpt.isPresent()) {
-                            CompatibilityMetadata meta = metaOpt.get();
-                            if (meta.targetMod() != null && !FoodCompatibilityManager.isModLoaded(meta.targetMod())) {
-                                skippedPacks.put(namespace, meta);
-                                LOGGER.info("Skipped compatibility pack '{}' ({}) because target mod '{}' is not loaded",
-                                        meta.name(), namespace, meta.targetMod());
-                            } else {
-                                activePacks.put(namespace, meta);
-                                LOGGER.info("Loaded compatibility pack '{}' ({})", meta.name(), namespace);
-                            }
+                        JsonElement parsed = GSON.fromJson(reader, JsonElement.class);
+                        if (parsed != null && parsed.isJsonObject()) {
+                            parseResult = CompatibilityMetadata.parse(parsed.getAsJsonObject());
+                        } else {
+                            parseResult = MetadataParseResult.invalid("Root element is not a JSON object");
                         }
                     } catch (Exception e) {
                         LOGGER.warn("Failed to parse compatibility metadata from {}: {}", metaLoc, e.getMessage());
+                        parseResult = MetadataParseResult.invalid("Malformed JSON: " + e.getMessage());
                     }
+                } else {
+                    parseResult = MetadataParseResult.absent();
                 }
+
+                if (parseResult instanceof MetadataParseResult.Valid valid) {
+                    CompatibilityMetadata meta = valid.metadata();
+                    if (meta.targetMod() != null && !FoodCompatibilityManager.isModLoaded(meta.targetMod())) {
+                        skippedPacks.put(namespace, meta);
+                        LOGGER.info("Skipped compatibility pack '{}' ({}) because target mod '{}' is not loaded",
+                                meta.name(), namespace, meta.targetMod());
+                    } else {
+                        activePacks.put(namespace, meta);
+                        LOGGER.info("Loaded compatibility pack '{}' ({})", meta.name(), namespace);
+                    }
+                } else if (parseResult instanceof MetadataParseResult.Invalid invalid) {
+                    LOGGER.warn("Skipping compatibility classifications for namespace '{}' due to invalid metadata: {}",
+                            namespace, invalid.reason());
+                    skippedPacks.put(namespace, new CompatibilityMetadata(-1, "Invalid Metadata (" + invalid.reason() + ")", null));
+                }
+                // MetadataParseResult.Absent loads normally without entry in active or skipped packs
             }
         }
 
-        FoodCompatibilityManager.updateCompatibilityPacks(activePacks, skippedPacks);
-        Map<ResourceLocation, List<FoodClassification>> parsed = FoodClassificationJsonLoader.parseAllMulti(jsonMap, activePacks, skippedPacks);
-        FoodClassificationRegistry.setDatapackMultiClassifications(parsed);
-        FoodClassificationRegistry.reloadUserOverridesFromConfig();
+        // Parse datapacks using active and skipped packs
+        Map<ResourceLocation, List<FoodClassification>> datapackEntries =
+                FoodClassificationJsonLoader.parseAllMulti(jsonMap, activePacks, skippedPacks);
+
+        // Parse user overrides from config
+        Map<ResourceLocation, FoodClassification> userOverrides =
+                FoodClassificationRegistry.parseUserOverridesFromConfig();
+
+        // Build COMPLETE immutable runtime state
+        ClassificationRuntimeState runtimeState = new ClassificationRuntimeState(
+                datapackEntries,
+                userOverrides,
+                activePacks,
+                skippedPacks
+        );
+
+        // Single atomic swap: readers see generation N or generation N+1, never a mixture
+        FoodClassificationRegistry.applyRuntimeState(runtimeState);
+        LOGGER.info("Applied {} datapack classification keys and {} user overrides transactionally",
+                datapackEntries.size(), userOverrides.size());
     }
 }

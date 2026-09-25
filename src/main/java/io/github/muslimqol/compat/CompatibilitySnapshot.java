@@ -30,15 +30,15 @@ public final class CompatibilitySnapshot {
 
     private final List<FoodClassificationProvider> providers;
     private final List<List<FoodClassificationProvider>> tierGroups;
-    private final Map<String, CompatibilityMetadata> activePacks;
-    private final Map<String, CompatibilityMetadata> skippedPacks;
+    private final ClassificationRuntimeState runtimeState;
 
     public CompatibilitySnapshot(
             List<FoodClassificationProvider> providers,
-            Map<String, CompatibilityMetadata> activePacks,
-            Map<String, CompatibilityMetadata> skippedPacks
+            ClassificationRuntimeState runtimeState
     ) {
         Objects.requireNonNull(providers, "providers must not be null");
+        this.runtimeState = runtimeState != null ? runtimeState : ClassificationRuntimeState.EMPTY;
+
         // Sort providers deterministically: higher priority level first, then providerId lexicographically
         List<FoodClassificationProvider> sorted = new ArrayList<>(providers);
         sorted.sort((a, b) -> {
@@ -56,21 +56,34 @@ public final class CompatibilitySnapshot {
         List<List<FoodClassificationProvider>> tiers = new ArrayList<>();
         groups.values().forEach(list -> tiers.add(Collections.unmodifiableList(list)));
         this.tierGroups = Collections.unmodifiableList(tiers);
+    }
 
-        this.activePacks = activePacks == null ? Map.of() : Map.copyOf(activePacks);
-        this.skippedPacks = skippedPacks == null ? Map.of() : Map.copyOf(skippedPacks);
+    public CompatibilitySnapshot(
+            List<FoodClassificationProvider> providers,
+            Map<String, CompatibilityMetadata> activePacks,
+            Map<String, CompatibilityMetadata> skippedPacks
+    ) {
+        this(providers, new ClassificationRuntimeState(Map.of(), Map.of(), activePacks, skippedPacks));
     }
 
     public List<FoodClassificationProvider> getProviders() {
         return providers;
     }
 
+    public ClassificationRuntimeState getRuntimeState() {
+        return runtimeState;
+    }
+
     public Map<String, CompatibilityMetadata> getActivePacks() {
-        return activePacks;
+        return runtimeState.activePacks();
     }
 
     public Map<String, CompatibilityMetadata> getSkippedPacks() {
-        return skippedPacks;
+        return runtimeState.skippedPacks();
+    }
+
+    public ClassificationResolution resolve(ResourceLocation itemId) {
+        return resolve(itemId, ItemStack.EMPTY);
     }
 
     /**
@@ -93,7 +106,8 @@ public final class CompatibilitySnapshot {
                         candidates.add(new FoodClassificationCandidate(
                                 normalized.providerId(),
                                 normalized,
-                                normalized.priority()
+                                normalized.priority(),
+                                normalized.ruleId()
                         ));
                     }
                 }
@@ -107,7 +121,7 @@ public final class CompatibilitySnapshot {
             return new ClassificationResolution(FoodClassification.unknown(), List.of(), false);
         }
 
-        // Sort candidates: descending priority level, then providerId tie-breaker
+        // Sort candidates: descending priority level, then providerId tie-breaker, ruleId, status, reason
         Collections.sort(candidates);
 
         FoodClassificationCandidate winner = candidates.get(0);
@@ -131,6 +145,10 @@ public final class CompatibilitySnapshot {
         return new ClassificationResolution(winner.classification(), candidates, conflicted);
     }
 
+    public FoodClassification classify(ResourceLocation itemId) {
+        return classify(itemId, ItemStack.EMPTY);
+    }
+
     /**
      * Allocation-light fast-path lookup returning only the resolved classification.
      * Evaluates strictly tier-by-tier and short-circuits immediately when a winning tier matches.
@@ -142,7 +160,7 @@ public final class CompatibilitySnapshot {
 
         for (List<FoodClassificationProvider> tier : tierGroups) {
             FoodClassification tierWinner = null;
-            ClassificationProviderId bestId = null;
+            FoodClassificationCandidate bestCandidate = null;
 
             for (FoodClassificationProvider provider : tier) {
                 try {
@@ -151,10 +169,15 @@ public final class CompatibilitySnapshot {
                         for (FoodClassification raw : list) {
                             if (raw == null) continue;
                             FoodClassification normalized = normalize(provider, raw);
-                            ClassificationProviderId effectiveId = normalized.providerId();
-                            if (tierWinner == null || effectiveId.compareTo(bestId) < 0) {
+                            FoodClassificationCandidate cand = new FoodClassificationCandidate(
+                                    normalized.providerId(),
+                                    normalized,
+                                    normalized.priority(),
+                                    normalized.ruleId()
+                            );
+                            if (bestCandidate == null || cand.compareTo(bestCandidate) < 0) {
+                                bestCandidate = cand;
                                 tierWinner = normalized;
-                                bestId = effectiveId;
                             }
                         }
                     }
@@ -199,7 +222,8 @@ public final class CompatibilitySnapshot {
                 raw.reason(),
                 raw.source(),
                 idMatches ? raw.providerId() : provider.id(),
-                provider.priority() // registered provider priority is ALWAYS authoritative
+                provider.priority(), // registered provider priority is ALWAYS authoritative
+                raw.ruleId()
         );
     }
 }

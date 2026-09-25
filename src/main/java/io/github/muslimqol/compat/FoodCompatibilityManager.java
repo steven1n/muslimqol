@@ -43,17 +43,14 @@ public final class FoodCompatibilityManager {
     // Default ModList loader checker safely guarded against offline test execution
     private static Predicate<String> modLoadedChecker = FoodCompatibilityManager::defaultIsModLoaded;
 
-    // Registered providers maintained as an ordered map of id -> provider
-    private static final Map<ClassificationProviderId, FoodClassificationProvider> REGISTERED_PROVIDERS = new LinkedHashMap<>();
-    private static Map<String, CompatibilityMetadata> activePacks = new LinkedHashMap<>();
-    private static Map<String, CompatibilityMetadata> skippedPacks = new LinkedHashMap<>();
+    // Registered custom providers maintained as an ordered map of id -> provider
+    private static final Map<ClassificationProviderId, FoodClassificationProvider> CUSTOM_PROVIDERS = new LinkedHashMap<>();
 
     // Active immutable snapshot swapped atomically
     private static final AtomicReference<CompatibilitySnapshot> SNAPSHOT_REF = new AtomicReference<>();
 
     static {
-        registerDefaultProviders();
-        rebuildSnapshot();
+        resetToDefaults();
     }
 
     private FoodCompatibilityManager() {}
@@ -82,11 +79,14 @@ public final class FoodCompatibilityManager {
         return id != null && RESERVED_IDS.contains(id);
     }
 
-    private static synchronized void registerDefaultProviders() {
-        REGISTERED_PROVIDERS.clear();
+    /**
+     * Builds default providers bound to a specific runtime state generation.
+     */
+    private static List<FoodClassificationProvider> createDefaultProviders(ClassificationRuntimeState state) {
+        List<FoodClassificationProvider> list = new ArrayList<>();
 
         // 1. User Override Provider
-        REGISTERED_PROVIDERS.put(ClassificationProviderId.USER_OVERRIDE, new FoodClassificationProvider() {
+        list.add(new FoodClassificationProvider() {
             @Override
             public ClassificationProviderId id() {
                 return ClassificationProviderId.USER_OVERRIDE;
@@ -99,12 +99,13 @@ public final class FoodCompatibilityManager {
 
             @Override
             public Optional<FoodClassification> classify(ResourceLocation itemId, ItemStack stack) {
-                return FoodClassificationRegistry.getUserOverride(itemId);
+                if (itemId == null) return Optional.empty();
+                return Optional.ofNullable(state.userOverrides().get(itemId));
             }
         });
 
         // 2. Datapack Provider (preserves all multi-pack candidate classifications)
-        REGISTERED_PROVIDERS.put(ClassificationProviderId.DATAPACK, new FoodClassificationProvider() {
+        list.add(new FoodClassificationProvider() {
             @Override
             public ClassificationProviderId id() {
                 return ClassificationProviderId.DATAPACK;
@@ -117,17 +118,21 @@ public final class FoodCompatibilityManager {
 
             @Override
             public Optional<FoodClassification> classify(ResourceLocation itemId, ItemStack stack) {
-                return FoodClassificationRegistry.getDatapackClassification(itemId);
+                if (itemId == null) return Optional.empty();
+                List<FoodClassification> entries = state.datapackEntries().get(itemId);
+                return (entries != null && !entries.isEmpty()) ? Optional.of(entries.get(0)) : Optional.empty();
             }
 
             @Override
             public List<FoodClassification> classifyAll(ResourceLocation itemId, ItemStack stack) {
-                return FoodClassificationRegistry.getDatapackClassifications(itemId);
+                if (itemId == null) return List.of();
+                List<FoodClassification> entries = state.datapackEntries().get(itemId);
+                return entries != null ? entries : List.of();
             }
         });
 
         // 3. Item Tag Provider
-        REGISTERED_PROVIDERS.put(ClassificationProviderId.ITEM_TAG, new FoodClassificationProvider() {
+        list.add(new FoodClassificationProvider() {
             @Override
             public ClassificationProviderId id() {
                 return ClassificationProviderId.ITEM_TAG;
@@ -147,7 +152,7 @@ public final class FoodCompatibilityManager {
         });
 
         // 4. Builtin Provider
-        REGISTERED_PROVIDERS.put(ClassificationProviderId.BUILTIN, new FoodClassificationProvider() {
+        list.add(new FoodClassificationProvider() {
             @Override
             public ClassificationProviderId id() {
                 return ClassificationProviderId.BUILTIN;
@@ -160,18 +165,35 @@ public final class FoodCompatibilityManager {
 
             @Override
             public Optional<FoodClassification> classify(ResourceLocation itemId, ItemStack stack) {
-                return BuiltinFoodData.getClassification(itemId);
+                return itemId != null ? BuiltinFoodData.getClassification(itemId) : Optional.empty();
             }
         });
+
+        return list;
     }
 
     /**
-     * Rebuilds and atomically updates the active immutable compatibility snapshot.
+     * Rebuilds and atomically updates the active immutable compatibility snapshot using current runtime state.
      */
     public static synchronized void rebuildSnapshot() {
-        List<FoodClassificationProvider> providerList = new ArrayList<>(REGISTERED_PROVIDERS.values());
-        CompatibilitySnapshot newSnapshot = new CompatibilitySnapshot(providerList, activePacks, skippedPacks);
+        rebuildSnapshot(FoodClassificationRegistry.getRuntimeState());
+    }
+
+    /**
+     * Rebuilds and atomically updates the snapshot for a specific runtime state generation.
+     */
+    public static synchronized void rebuildSnapshot(ClassificationRuntimeState state) {
+        List<FoodClassificationProvider> providerList = new ArrayList<>(CUSTOM_PROVIDERS.values());
+        providerList.addAll(createDefaultProviders(state != null ? state : ClassificationRuntimeState.EMPTY));
+        CompatibilitySnapshot newSnapshot = new CompatibilitySnapshot(providerList, state);
         SNAPSHOT_REF.set(newSnapshot);
+    }
+
+    /**
+     * Applies a complete new runtime state generation transactionally.
+     */
+    public static void applyRuntimeState(ClassificationRuntimeState state) {
+        rebuildSnapshot(state);
     }
 
     /**
@@ -184,7 +206,7 @@ public final class FoodCompatibilityManager {
         if (isReserved(provider.id())) {
             throw new IllegalArgumentException("Cannot register custom provider with reserved system ID: " + provider.id());
         }
-        REGISTERED_PROVIDERS.put(provider.id(), provider);
+        CUSTOM_PROVIDERS.put(provider.id(), provider);
         rebuildSnapshot();
         LOGGER.info("Registered food classification provider '{}' (priority {})",
                 provider.id(), provider.priority());
@@ -202,7 +224,7 @@ public final class FoodCompatibilityManager {
             LOGGER.warn("Cannot unregister reserved system provider '{}'", id);
             return false;
         }
-        if (REGISTERED_PROVIDERS.remove(id) != null) {
+        if (CUSTOM_PROVIDERS.remove(id) != null) {
             rebuildSnapshot();
             LOGGER.info("Unregistered food classification provider '{}'", id);
             return true;
@@ -211,25 +233,32 @@ public final class FoodCompatibilityManager {
     }
 
     /**
-     * Updates recorded compatibility pack metadata and rebuilds snapshot.
+     * Updates recorded compatibility pack metadata and rebuilds snapshot transactionally.
      */
     public static synchronized void updateCompatibilityPacks(
             Map<String, CompatibilityMetadata> active,
             Map<String, CompatibilityMetadata> skipped
     ) {
-        activePacks = active != null ? new LinkedHashMap<>(active) : new LinkedHashMap<>();
-        skippedPacks = skipped != null ? new LinkedHashMap<>(skipped) : new LinkedHashMap<>();
-        rebuildSnapshot();
+        ClassificationRuntimeState current = FoodClassificationRegistry.getRuntimeState();
+        ClassificationRuntimeState next = new ClassificationRuntimeState(
+                current.datapackEntries(),
+                current.userOverrides(),
+                active,
+                skipped
+        );
+        FoodClassificationRegistry.applyRuntimeState(next);
     }
 
     /**
      * Resets manager state to built-in defaults (clearing third-party providers and pack metadata).
      */
     public static synchronized void resetToDefaults() {
-        activePacks.clear();
-        skippedPacks.clear();
-        registerDefaultProviders();
-        rebuildSnapshot();
+        resetToDefaults(ClassificationRuntimeState.EMPTY);
+    }
+
+    public static synchronized void resetToDefaults(ClassificationRuntimeState state) {
+        CUSTOM_PROVIDERS.clear();
+        rebuildSnapshot(state);
     }
 
     public static CompatibilitySnapshot getActiveSnapshot() {
