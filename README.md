@@ -118,6 +118,19 @@ MuslimQoL includes optional client compatibility with recipe viewers:
 
 ---
 
+## Supported Compatibility Packs
+
+MuslimQoL includes built-in compatibility packs for major third-party food mods. These packs activate dynamically when the target mod is present:
+
+- **Farmer's Delight**: Fully audited and classified for **Farmer's Delight 1.3.4** (Minecraft 1.21.1 / NeoForge).
+  - **Namespace**: `muslimqol_farmersdelight`
+  - **Zero Java Dependencies**: Provided strictly through data-driven compatibility definitions; no code dependency on Farmer's Delight.
+  - **Coverage**: 100% coverage across all 89 edible items (53 Halal, 11 Restricted, 5 Doubtful, 20 Unknown; 0 unclassified).
+  - **Behavior**: Automatically activated when `farmersdelight` is installed; safely skipped when absent.
+  - **Documentation**: See [docs/compatibility/farmers-delight-1.21.1.md](docs/compatibility/farmers-delight-1.21.1.md) for the complete item-by-item audit and classification table.
+
+---
+
 ## Configuration
 
 ### Server Gameplay Preferences (`config/muslimqol-common.toml`)
