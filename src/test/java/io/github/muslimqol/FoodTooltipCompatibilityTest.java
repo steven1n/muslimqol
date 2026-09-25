@@ -4,7 +4,6 @@ import io.github.muslimqol.api.ClassificationSource;
 import io.github.muslimqol.api.FoodClassification;
 import io.github.muslimqol.api.FoodStatus;
 import io.github.muslimqol.client.FoodClassificationTooltipFormatter;
-import io.github.muslimqol.client.compat.jei.MuslimQolJeiPlugin;
 import io.github.muslimqol.compat.FoodCompatibilityManager;
 import io.github.muslimqol.food.FoodClassificationRegistry;
 import net.minecraft.ChatFormatting;
@@ -21,10 +20,24 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class JeiIntegrationTest {
+/**
+ * Verifies that {@link FoodClassificationTooltipFormatter} correctly formats food status tooltips
+ * for MuslimQoL's classification pipeline.
+ *
+ * <p>These tests exercise MuslimQoL-owned presentation logic only. No JEI classes are required.
+ * The tooltip formatter produces the same output when invoked by NeoForge's ItemTooltipEvent
+ * (normal gameplay) or by any other recipe viewer that obtains tooltips through the standard
+ * Minecraft/NeoForge tooltip pipeline.
+ *
+ * <p>Note on {@code shouldShowTooltip(ResourceLocation)}: this overload cannot detect arbitrary
+ * modded edible items because food detection via {@code DataComponents.FOOD} requires an actual
+ * {@code ItemStack}. It returns {@code true} only when the item is explicitly classified in
+ * MuslimQoL's classification data. Tests therefore use known classified items (apple, porkchop)
+ * from the built-in data set. For real UI rendering, prefer the {@code ItemStack} overload.
+ */
+class FoodTooltipCompatibilityTest {
 
     private final ResourceLocation appleId = ResourceLocation.parse("minecraft:apple");
     private final ResourceLocation porkId = ResourceLocation.parse("minecraft:porkchop");
@@ -45,6 +58,35 @@ class JeiIntegrationTest {
         FoodCompatibilityManager.resetToDefaults();
     }
 
+    // ── status color mapping ───────────────────────────────────────────────────
+
+    @Test
+    void testStatusColorHalal() {
+        assertEquals(ChatFormatting.GREEN, FoodClassificationTooltipFormatter.getStatusColor(FoodStatus.HALAL));
+    }
+
+    @Test
+    void testStatusColorRestricted() {
+        assertEquals(ChatFormatting.RED, FoodClassificationTooltipFormatter.getStatusColor(FoodStatus.RESTRICTED));
+    }
+
+    @Test
+    void testStatusColorDoubtful() {
+        assertEquals(ChatFormatting.GOLD, FoodClassificationTooltipFormatter.getStatusColor(FoodStatus.DOUBTFUL));
+    }
+
+    @Test
+    void testStatusColorUnknown() {
+        assertEquals(ChatFormatting.GRAY, FoodClassificationTooltipFormatter.getStatusColor(FoodStatus.UNKNOWN));
+    }
+
+    @Test
+    void testStatusColorNull() {
+        assertEquals(ChatFormatting.GRAY, FoodClassificationTooltipFormatter.getStatusColor(null));
+    }
+
+    // ── HALAL formatting ───────────────────────────────────────────────────────
+
     @Test
     void testTooltipFormatterMapsHalalCorrectly() {
         assertTrue(FoodClassificationTooltipFormatter.shouldShowTooltip(appleId));
@@ -52,17 +94,17 @@ class JeiIntegrationTest {
         List<Component> lines = FoodClassificationTooltipFormatter.formatTooltip(appleId);
         assertFalse(lines.isEmpty(), "Halal food must produce tooltip lines");
 
-        // First content line after separator is status
+        // lines[0] = separator, lines[1] = status, lines[2] = reason
         Component statusLine = lines.get(1);
-        assertEquals(ChatFormatting.GREEN, FoodClassificationTooltipFormatter.getStatusColor(FoodStatus.HALAL));
         assertTrue(statusLine.getContents() instanceof TranslatableContents);
         assertEquals("food_status.muslimqol.halal", ((TranslatableContents) statusLine.getContents()).getKey());
 
-        // Reason line
         Component reasonLine = lines.get(2);
         assertTrue(reasonLine.getContents() instanceof TranslatableContents);
         assertEquals("food_reason.muslimqol.plant_based", ((TranslatableContents) reasonLine.getContents()).getKey());
     }
+
+    // ── RESTRICTED formatting ──────────────────────────────────────────────────
 
     @Test
     void testTooltipFormatterMapsRestrictedCorrectly() {
@@ -72,7 +114,6 @@ class JeiIntegrationTest {
         assertFalse(lines.isEmpty(), "Restricted food must produce tooltip lines");
 
         Component statusLine = lines.get(1);
-        assertEquals(ChatFormatting.RED, FoodClassificationTooltipFormatter.getStatusColor(FoodStatus.RESTRICTED));
         assertTrue(statusLine.getContents() instanceof TranslatableContents);
         assertEquals("food_status.muslimqol.restricted", ((TranslatableContents) statusLine.getContents()).getKey());
 
@@ -80,11 +121,13 @@ class JeiIntegrationTest {
         assertTrue(reasonLine.getContents() instanceof TranslatableContents);
         assertEquals("food_reason.muslimqol.swine", ((TranslatableContents) reasonLine.getContents()).getKey());
 
-        // Must include policy warning line
+        // Must include policy line (BLOCK policy for RESTRICTED)
         boolean hasPolicyLine = lines.stream().anyMatch(c -> c.getContents() instanceof TranslatableContents tc
                 && tc.getKey().equals("food_policy.muslimqol.policy_line"));
         assertTrue(hasPolicyLine, "Restricted food must include policy restriction line");
     }
+
+    // ── DOUBTFUL formatting ────────────────────────────────────────────────────
 
     @Test
     void testTooltipFormatterMapsDoubtfulCorrectly() {
@@ -93,7 +136,6 @@ class JeiIntegrationTest {
 
         assertFalse(lines.isEmpty());
         Component statusLine = lines.get(1);
-        assertEquals(ChatFormatting.GOLD, FoodClassificationTooltipFormatter.getStatusColor(FoodStatus.DOUBTFUL));
         assertTrue(statusLine.getContents() instanceof TranslatableContents);
         assertEquals("food_status.muslimqol.doubtful", ((TranslatableContents) statusLine.getContents()).getKey());
 
@@ -103,8 +145,10 @@ class JeiIntegrationTest {
 
         boolean hasPolicyLine = lines.stream().anyMatch(c -> c.getContents() instanceof TranslatableContents tc
                 && tc.getKey().equals("food_policy.muslimqol.policy_line"));
-        assertTrue(hasPolicyLine, "Doubtful food must include policy line");
+        assertTrue(hasPolicyLine, "Doubtful food must include policy warning line");
     }
+
+    // ── UNKNOWN formatting ─────────────────────────────────────────────────────
 
     @Test
     void testTooltipFormatterMapsUnknownCorrectly() {
@@ -113,22 +157,26 @@ class JeiIntegrationTest {
 
         assertFalse(lines.isEmpty());
         Component statusLine = lines.get(1);
-        assertEquals(ChatFormatting.GRAY, FoodClassificationTooltipFormatter.getStatusColor(FoodStatus.UNKNOWN));
         assertTrue(statusLine.getContents() instanceof TranslatableContents);
         assertEquals("food_status.muslimqol.unknown", ((TranslatableContents) statusLine.getContents()).getKey());
     }
 
+    // ── non-food suppression ───────────────────────────────────────────────────
+
     @Test
     void testNonFoodDoesNotGenerateTooltipClutter() {
+        // stone is not food and has no explicit classification
         assertFalse(FoodClassificationTooltipFormatter.shouldShowTooltip(stoneId),
-                "Non-food blocks/items must not be marked as needing food tooltips");
+                "Non-food items must not be marked as needing food tooltips");
 
         List<Component> lines = FoodClassificationTooltipFormatter.formatTooltip(stoneId);
-        assertTrue(lines.isEmpty(), "Non-food items must produce zero MuslimQoL tooltip lines in JEI/inventory");
+        assertTrue(lines.isEmpty(), "Non-food items must produce zero MuslimQoL tooltip lines");
     }
 
+    // ── null/empty safety ──────────────────────────────────────────────────────
+
     @Test
-    void testNullOrEmptyStackDoesNotGenerateTooltip() {
+    void testNullOrEmptyInputProducesNoTooltip() {
         assertFalse(FoodClassificationTooltipFormatter.shouldShowTooltip((ItemStack) null));
         assertFalse(FoodClassificationTooltipFormatter.shouldShowTooltip((ResourceLocation) null));
         assertFalse(FoodClassificationTooltipFormatter.shouldShowTooltip(ItemStack.EMPTY));
@@ -139,39 +187,26 @@ class JeiIntegrationTest {
         assertTrue(FoodClassificationTooltipFormatter.formatTooltip((FoodClassification) null).isEmpty());
     }
 
-    @Test
-    void testTooltipFormatterReflectsCoreFoodClassifierDirectly() {
-        // Built-in status is HALAL
-        List<Component> initialLines = FoodClassificationTooltipFormatter.formatTooltip(appleId);
-        assertEquals("food_status.muslimqol.halal", ((TranslatableContents) initialLines.get(1).getContents()).getKey());
+    // ── dynamic classification state / no stale caching ───────────────────────
 
-        // Datapack override to DOUBTFUL
+    @Test
+    void testTooltipReflectsLiveClassificationWithoutStaleCaching() {
+        // Initial built-in state: apple is HALAL
+        List<Component> initialLines = FoodClassificationTooltipFormatter.formatTooltip(appleId);
+        assertEquals("food_status.muslimqol.halal",
+                ((TranslatableContents) initialLines.get(1).getContents()).getKey());
+
+        // Simulate datapack override to DOUBTFUL (e.g. after /reload)
         FoodClassificationRegistry.registerDatapackEntry(
                 appleId,
                 new FoodClassification(FoodStatus.DOUBTFUL, "datapack_concern", ClassificationSource.DATAPACK)
         );
 
-        // Tooltip immediately reflects updated classification without restart or stale cache
+        // Next hover must reflect updated state immediately — no stale cache
         List<Component> updatedLines = FoodClassificationTooltipFormatter.formatTooltip(appleId);
-        assertEquals("food_status.muslimqol.doubtful", ((TranslatableContents) updatedLines.get(1).getContents()).getKey());
-        assertEquals("food_reason.muslimqol.datapack_concern", ((TranslatableContents) updatedLines.get(2).getContents()).getKey());
-    }
-
-    @Test
-    void testJeiPluginContractAndUid() {
-        try {
-            Class.forName("mezz.jei.api.IModPlugin");
-        } catch (ClassNotFoundException e) {
-            // JEI classes not present on runtime classpath (e.g. running in no-JEI environment)
-            return;
-        }
-
-        MuslimQolJeiPlugin plugin = new MuslimQolJeiPlugin();
-        assertNotNull(plugin.getPluginUid());
-        assertEquals("muslimqol:jei", plugin.getPluginUid().toString());
-        assertEquals(MuslimQolJeiPlugin.PLUGIN_UID, plugin.getPluginUid());
-
-        // Verify runtime lifecycle callback completes without exception
-        plugin.onRuntimeAvailable(null);
+        assertEquals("food_status.muslimqol.doubtful",
+                ((TranslatableContents) updatedLines.get(1).getContents()).getKey());
+        assertEquals("food_reason.muslimqol.datapack_concern",
+                ((TranslatableContents) updatedLines.get(2).getContents()).getKey());
     }
 }

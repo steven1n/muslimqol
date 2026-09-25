@@ -16,7 +16,15 @@ import java.util.List;
 
 /**
  * Shared client presentation helper for formatting food classification tooltips.
- * Used by NeoForge ItemTooltipEvent and optional UI integrations (such as JEI).
+ *
+ * <p>Used by NeoForge's {@code ItemTooltipEvent} to populate inventory, hotbar, and any recipe
+ * viewer that obtains {@code ItemStack} tooltips through the standard Minecraft/NeoForge pipeline.
+ *
+ * <p><strong>ResourceLocation vs ItemStack:</strong> {@link #shouldShowTooltip(ItemStack)} checks
+ * {@code DataComponents.FOOD} and can therefore detect any modded edible item.
+ * {@link #shouldShowTooltip(ResourceLocation)} cannot access DataComponents and will return
+ * {@code true} only for items that are explicitly present in MuslimQoL classification data.
+ * For actual UI rendering always prefer the {@code ItemStack} overload.
  */
 public final class FoodClassificationTooltipFormatter {
 
