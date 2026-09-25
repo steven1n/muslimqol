@@ -67,15 +67,14 @@ tasks.named('runServer', JavaExec).configure {
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 configurations {
-    runtimeClasspath.extendsFrom localRuntime
     testCompileClasspath.extendsFrom compileClasspath
     testRuntimeClasspath.extendsFrom runtimeClasspath
 }
 
 dependencies {
-    compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
-    compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"
-    localRuntime "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
+    // JEI: client-only development runtime dependency for local compatibility testing.
+    // JEI is NOT compiled against, NOT bundled, and NOT present on the server or test runtime.
+    clientAdditionalRuntimeClasspath "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.2'
     testImplementation 'org.junit.jupiter:junit-jupiter-params:5.10.2'
