@@ -1,0 +1,54 @@
+{
+  "values": [
+    {
+      "item": "farmersdelight:bacon",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "farmersdelight:cooked_bacon",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "farmersdelight:bacon_and_eggs",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "farmersdelight:bacon_sandwich",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "farmersdelight:ham",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "farmersdelight:smoked_ham",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "farmersdelight:honey_glazed_ham",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "farmersdelight:honey_glazed_ham_block",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "farmersdelight:noodle_soup",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "farmersdelight:pumpkin_soup",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    }
+  ]
+}

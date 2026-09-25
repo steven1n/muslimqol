@@ -1,0 +1,74 @@
+{
+  "values": [
+    {
+      "item": "farmersdelight:fruit_salad",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:mixed_salad",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:vegetable_soup",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:onion_soup",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:vegetable_noodles",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:ratatouille",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:mushroom_rice",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:stuffed_pumpkin",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:stuffed_pumpkin_block",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:gleaming_salad",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:gleaming_salad_block",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:fried_rice",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:fried_egg",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "farmersdelight:egg_sandwich",
+      "status": "HALAL",
+      "reason": "plant_based"
+    }
+  ]
+}
