@@ -15,6 +15,10 @@ group = mod_group_id
 repositories {
     mavenLocal()
     mavenCentral()
+    maven {
+        name = "BlameJared"
+        url = "https://maven.blamejared.com"
+    }
 }
 
 base {
@@ -63,12 +67,15 @@ tasks.named('runServer', JavaExec).configure {
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 configurations {
-    runtimeClasspath.extendsFrom localRuntime
     testCompileClasspath.extendsFrom compileClasspath
     testRuntimeClasspath.extendsFrom runtimeClasspath
 }
 
 dependencies {
+    // JEI: client-only development runtime dependency for local compatibility testing.
+    // JEI is NOT compiled against, NOT bundled, and NOT present on the server or test runtime.
+    clientAdditionalRuntimeClasspath "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
+
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.2'
     testImplementation 'org.junit.jupiter:junit-jupiter-params:5.10.2'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
