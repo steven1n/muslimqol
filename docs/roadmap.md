@@ -19,7 +19,7 @@ This document outlines the architectural roadmap for MuslimQoL across current an
 ### v0.2 — Recipe Viewers & Compatibility Packs
 - [x] Multi-provider compatibility framework with provenance tracking and conflict diagnostics (Experimental).
 - [x] Optional compatibility datapack metadata (`compatibility.json`) and missing-mod safe skipping.
-- [x] Optional JEI (Just Enough Items) integration and shared tooltip presentation layer.
+- [x] Optional JEI (Just Enough Items) compatibility via NeoForge standard tooltip pipeline and shared tooltip presentation layer.
 - Turnkey compatibility datapacks for major culinary mods (Farmer's Delight, Pam's HarvestCraft, Alex's Mobs, Aquaculture 2).
 - EMI recipe status indicators.
 
