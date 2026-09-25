@@ -1,8 +1,11 @@
 package io.github.muslimqol.food;
 
+import io.github.muslimqol.api.ClassificationPriority;
+import io.github.muslimqol.api.ClassificationProviderId;
 import io.github.muslimqol.api.ClassificationSource;
 import io.github.muslimqol.api.FoodClassification;
 import io.github.muslimqol.api.FoodStatus;
+import io.github.muslimqol.compat.FoodCompatibilityManager;
 import io.github.muslimqol.config.CommonConfig;
 import io.github.muslimqol.util.ResourceLocationUtil;
 import net.minecraft.resources.ResourceLocation;
@@ -34,10 +37,12 @@ public final class FoodClassificationRegistry {
             DATAPACK_ENTRIES.putAll(entries);
         }
         LOGGER.info("Loaded {} datapack food classifications", DATAPACK_ENTRIES.size());
+        FoodCompatibilityManager.rebuildSnapshot();
     }
 
     public static void registerDatapackEntry(ResourceLocation id, FoodClassification classification) {
         DATAPACK_ENTRIES.put(id, classification);
+        FoodCompatibilityManager.rebuildSnapshot();
     }
 
     public static Optional<FoodClassification> getDatapackClassification(ResourceLocation id) {
@@ -46,6 +51,7 @@ public final class FoodClassificationRegistry {
 
     public static void registerUserOverride(ResourceLocation id, FoodClassification classification) {
         USER_OVERRIDES.put(id, classification);
+        FoodCompatibilityManager.rebuildSnapshot();
     }
 
     public static Optional<FoodClassification> getUserOverride(ResourceLocation id) {
@@ -54,15 +60,18 @@ public final class FoodClassificationRegistry {
 
     public static void clearDatapack() {
         DATAPACK_ENTRIES.clear();
+        FoodCompatibilityManager.rebuildSnapshot();
     }
 
     public static void clearUserOverrides() {
         USER_OVERRIDES.clear();
+        FoodCompatibilityManager.rebuildSnapshot();
     }
 
     public static void clearAll() {
         DATAPACK_ENTRIES.clear();
         USER_OVERRIDES.clear();
+        FoodCompatibilityManager.resetToDefaults();
     }
 
     public static Map<ResourceLocation, FoodClassification> getDatapackEntries() {
@@ -80,10 +89,12 @@ public final class FoodClassificationRegistry {
         USER_OVERRIDES.clear();
         try {
             if (!CommonConfig.SPEC.isLoaded()) {
+                FoodCompatibilityManager.rebuildSnapshot();
                 return;
             }
             List<? extends String> rawList = CommonConfig.USER_OVERRIDES.get();
             if (rawList == null) {
+                FoodCompatibilityManager.rebuildSnapshot();
                 return;
             }
             for (String line : rawList) {
@@ -99,21 +110,29 @@ public final class FoodClassificationRegistry {
                 String reason = "user_override";
 
                 if (val.contains(":")) {
-                    String[] statusParts = val.split(":", 2);
-                    statusStr = statusParts[0].trim();
-                    reason = statusParts[1].trim();
+                    String[] sub = val.split(":", 2);
+                    statusStr = sub[0].trim();
+                    reason = sub[1].trim();
                 }
 
                 try {
                     FoodStatus status = FoodStatus.valueOf(statusStr.toUpperCase());
-                    USER_OVERRIDES.put(locOpt.get(), new FoodClassification(status, reason, ClassificationSource.USER_OVERRIDE));
+                    USER_OVERRIDES.put(locOpt.get(), new FoodClassification(
+                            status,
+                            reason,
+                            ClassificationSource.USER_OVERRIDE,
+                            ClassificationProviderId.USER_OVERRIDE,
+                            ClassificationPriority.USER_OVERRIDE
+                    ));
                 } catch (IllegalArgumentException e) {
-                    LOGGER.warn("Invalid FoodStatus in user override: {}", line);
+                    LOGGER.warn("Invalid FoodStatus '{}' in user override line: {}", statusStr, line);
                 }
             }
-            LOGGER.info("Loaded {} user food classification overrides from config", USER_OVERRIDES.size());
+            LOGGER.info("Loaded {} user food override classifications", USER_OVERRIDES.size());
         } catch (Exception e) {
-            LOGGER.error("Failed to load user food overrides from config", e);
+            LOGGER.error("Failed to reload user food overrides from configuration", e);
+        } finally {
+            FoodCompatibilityManager.rebuildSnapshot();
         }
     }
 }

@@ -3,9 +3,12 @@ package io.github.muslimqol.data;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import io.github.muslimqol.api.ClassificationPriority;
+import io.github.muslimqol.api.ClassificationProviderId;
 import io.github.muslimqol.api.ClassificationSource;
 import io.github.muslimqol.api.FoodClassification;
 import io.github.muslimqol.api.FoodStatus;
+import io.github.muslimqol.compat.CompatibilityMetadata;
 import io.github.muslimqol.util.ResourceLocationUtil;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
@@ -15,7 +18,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Parses JSON configurations into FoodClassification mappings.
+ * Parses JSON configurations into FoodClassification mappings with support for
+ * namespace-based compatibility pack filtering.
  */
 public final class FoodClassificationJsonLoader {
 
@@ -23,7 +27,21 @@ public final class FoodClassificationJsonLoader {
 
     private FoodClassificationJsonLoader() {}
 
+    /**
+     * Legacy parseAll for v0.1 compatibility.
+     */
     public static Map<ResourceLocation, FoodClassification> parseAll(Map<ResourceLocation, JsonElement> jsonMap) {
+        return parseAll(jsonMap, Map.of(), Map.of());
+    }
+
+    /**
+     * Parses all json entries while skipping namespaces whose target mods are not loaded.
+     */
+    public static Map<ResourceLocation, FoodClassification> parseAll(
+            Map<ResourceLocation, JsonElement> jsonMap,
+            Map<String, CompatibilityMetadata> activePacks,
+            Map<String, CompatibilityMetadata> skippedPacks
+    ) {
         Map<ResourceLocation, FoodClassification> result = new HashMap<>();
 
         if (jsonMap == null) {
@@ -32,6 +50,13 @@ public final class FoodClassificationJsonLoader {
 
         for (Map.Entry<ResourceLocation, JsonElement> entry : jsonMap.entrySet()) {
             ResourceLocation fileId = entry.getKey();
+            String namespace = fileId.getNamespace();
+
+            // Skip namespaces identified as skipped due to missing target mods
+            if (skippedPacks != null && skippedPacks.containsKey(namespace)) {
+                continue;
+            }
+
             JsonElement element = entry.getValue();
 
             if (!element.isJsonObject()) {
@@ -52,7 +77,7 @@ public final class FoodClassificationJsonLoader {
             JsonArray array = obj.getAsJsonArray("values");
             for (JsonElement itemElem : array) {
                 if (itemElem.isJsonObject()) {
-                    parseSingleObject(null, itemElem.getAsJsonObject(), result);
+                    parseSingleObject(fileId, itemElem.getAsJsonObject(), result);
                 }
             }
             return;
@@ -104,7 +129,16 @@ public final class FoodClassificationJsonLoader {
         }
 
         String reason = obj.has("reason") ? obj.get("reason").getAsString() : "datapack";
+        ClassificationProviderId providerId = fallbackId != null
+                ? ClassificationProviderId.of(fallbackId.getNamespace(), "datapack")
+                : ClassificationProviderId.DATAPACK;
 
-        result.put(targetId, new FoodClassification(status, reason, ClassificationSource.DATAPACK));
+        result.put(targetId, new FoodClassification(
+                status,
+                reason,
+                ClassificationSource.DATAPACK,
+                providerId,
+                ClassificationPriority.DATAPACK
+        ));
     }
 }

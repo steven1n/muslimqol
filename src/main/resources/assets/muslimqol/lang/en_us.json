@@ -29,5 +29,11 @@
 
   "commands.muslimqol.status": "MuslimQoL Status: Halal: %s | Restricted: %s | Doubtful: %s | Unknown: %s | Pig Policy: %s",
   "commands.muslimqol.classify.result": "Item: %s\nStatus: %s\nSource: %s\nReason: %s",
+  "commands.muslimqol.classify.header": "Item: %s | Resolved: %s",
+  "commands.muslimqol.classify.winner": "Winner:\n  Source: %s\n  Type: %s\n  Priority: %s\n  Reason: %s",
+  "commands.muslimqol.classify.candidates_header": "Candidates / Overridden:",
+  "commands.muslimqol.classify.conflict": "Conflict: %s",
+  "commands.muslimqol.providers.header": "Registered classification providers:",
+  "commands.muslimqol.providers.packs_header": "Compatibility Packs:",
   "commands.muslimqol.reload.success": "MuslimQoL configuration and overrides reloaded successfully."
 }
