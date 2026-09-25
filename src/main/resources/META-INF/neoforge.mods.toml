@@ -1,0 +1,26 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT"
+
+[[mods]]
+modId="muslimqol"
+version="0.1.0"
+displayName="MuslimQoL"
+authors="MuslimQoL Contributors"
+description='''
+A lightweight, extensible Minecraft mod that helps Muslim players manage food-related gameplay preferences.
+'''
+
+[[dependencies.muslimqol]]
+modId="neoforge"
+type="required"
+versionRange="[21.1.0,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.muslimqol]]
+modId="minecraft"
+type="required"
+versionRange="[1.21.1, 1.22)"
+ordering="NONE"
+side="BOTH"

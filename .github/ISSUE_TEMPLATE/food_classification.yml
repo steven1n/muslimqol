@@ -1,0 +1,41 @@
+name: Food Classification Request / Revision
+description: Suggest adding or revising classification for a vanilla or third-party food item
+title: "[Food]: "
+labels: ["food-classification"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to request a classification for a food item or propose adjusting an existing classification.
+        *Note*: Terminology describes gameplay classification only. The mod does not claim religious certification.
+  - type: input
+    id: item-id
+    attributes:
+      label: Item Identifier
+      description: The full ResourceLocation of the food item (e.g. `minecraft:pumpkin_pie`, `farmersdelight:bacon_and_eggs`)
+      placeholder: "modid:food_name"
+    validations:
+      required: true
+  - type: dropdown
+    id: proposed-status
+    attributes:
+      label: Proposed Classification Status
+      options:
+        - HALAL
+        - RESTRICTED
+        - DOUBTFUL
+        - UNKNOWN
+    validations:
+      required: true
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Ingredient / Gameplay Rationale
+      description: Explain the composition or nature of the item (e.g., plant-based, contains swine derivatives, unknown origin).
+    validations:
+      required: true
+  - type: textarea
+    id: recipe
+    attributes:
+      label: Crafting Recipe / Source
+      description: List the recipe ingredients or mob drops that produce this food item.

@@ -1,0 +1,32 @@
+name: Third-Party Mod Compatibility Request
+description: Request built-in support or tag mappings for a third-party mod
+title: "[Compat]: "
+labels: ["compatibility"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Request food tag or classification integration with external mods (e.g., Farmer's Delight, Pam's HarvestCraft, Alex's Mobs).
+  - type: input
+    id: mod-name
+    attributes:
+      label: Mod Name & Mod ID
+      description: Name of the mod and its namespace identifier (e.g. `Farmer's Delight` (`farmersdelight`))
+      placeholder: "Mod Name (modid)"
+    validations:
+      required: true
+  - type: input
+    id: mod-link
+    attributes:
+      label: Mod URL
+      description: Link to CurseForge, Modrinth, or GitHub
+      placeholder: "https://modrinth.com/mod/..."
+    validations:
+      required: true
+  - type: textarea
+    id: notable-foods
+    attributes:
+      label: Notable Food Items / Mechanics
+      description: List swine-derived, plant-based, or special meat items introduced by this mod.
+    validations:
+      required: true

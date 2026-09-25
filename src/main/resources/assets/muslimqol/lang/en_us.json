@@ -1,0 +1,33 @@
+{
+  "food_status.muslimqol.halal": "✓ Halal",
+  "food_status.muslimqol.restricted": "⛔ Restricted",
+  "food_status.muslimqol.doubtful": "⚠ Doubtful",
+  "food_status.muslimqol.unknown": "? Unknown",
+
+  "food_reason.muslimqol.plant_based": "Plant-based food",
+  "food_reason.muslimqol.swine": "Swine-derived food",
+  "food_reason.muslimqol.carrion": "Carrion / Rotten flesh",
+  "food_reason.muslimqol.poisonous": "Poisonous / Harmful item",
+  "food_reason.muslimqol.toxic_plant": "Toxic plant component",
+  "food_reason.muslimqol.unknown_ingredients": "Uncertain ingredient mixture",
+  "food_reason.muslimqol.honey": "Permissible nectar / honey",
+  "food_reason.muslimqol.fish": "Seafood / Scaled fish",
+  "food_reason.muslimqol.unclassified": "This food has not been classified.",
+  "food_reason.muslimqol.unspecified_meat": "Unspecified meat source",
+  "food_reason.muslimqol.tag_halal": "Classified as Halal via item tag",
+  "food_reason.muslimqol.tag_restricted": "Classified as Restricted via item tag",
+  "food_reason.muslimqol.tag_doubtful": "Classified as Doubtful via item tag",
+  "food_reason.muslimqol.datapack": "Classified via datapack configuration",
+  "food_reason.muslimqol.user_override": "Configured by user override",
+
+  "food_policy.muslimqol.allow": "Allow",
+  "food_policy.muslimqol.warn": "Warn",
+  "food_policy.muslimqol.block": "Block",
+  "food_policy.muslimqol.policy_line": "Consumption policy: %s",
+  "food_policy.muslimqol.warn_message": "Warning: You are consuming food classified as %s (%s).",
+  "food_policy.muslimqol.block_message": "Cannot consume %s: It is restricted by your food preferences.",
+
+  "commands.muslimqol.status": "MuslimQoL Status: Halal: %s | Restricted: %s | Doubtful: %s | Unknown: %s | Pig Policy: %s",
+  "commands.muslimqol.classify.result": "Item: %s\nStatus: %s\nSource: %s\nReason: %s",
+  "commands.muslimqol.reload.success": "MuslimQoL configuration and overrides reloaded successfully."
+}

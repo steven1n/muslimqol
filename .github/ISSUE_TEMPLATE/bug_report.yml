@@ -1,0 +1,59 @@
+name: Bug Report
+description: Report a defect, crash, or unexpected behavior in MuslimQoL
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue! Please provide as much detail as possible to help reproduce and resolve it.
+  - type: input
+    id: version
+    attributes:
+      label: MuslimQoL Version
+      description: What version of MuslimQoL are you running? (e.g. 0.1.0)
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: neoforge-version
+    attributes:
+      label: NeoForge Version
+      description: Exact NeoForge build number (e.g. 21.1.176)
+      placeholder: "21.1.176"
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Singleplayer
+        - Dedicated Server
+        - LAN Multiplayer
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description of the Bug
+      description: A clear and concise description of the unexpected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the issue.
+      placeholder: |
+        1. Hold item '...'
+        2. Attempt to consume
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Crash Report / Log Output
+      description: Paste relevant crash reports or logs here (using code blocks).
+      render: shell

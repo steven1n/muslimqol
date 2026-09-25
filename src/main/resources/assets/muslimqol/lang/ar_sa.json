@@ -1,0 +1,33 @@
+{
+  "food_status.muslimqol.halal": "✓ حلال",
+  "food_status.muslimqol.restricted": "⛔ محظور",
+  "food_status.muslimqol.doubtful": "⚠ مشتبه فيه",
+  "food_status.muslimqol.unknown": "؟ غير معروف",
+
+  "food_reason.muslimqol.plant_based": "طعام نباتي",
+  "food_reason.muslimqol.swine": "مشتق من الخنزير",
+  "food_reason.muslimqol.carrion": "ميتة / لحم فاسد",
+  "food_reason.muslimqol.poisonous": "عنصر سام أو ضار",
+  "food_reason.muslimqol.toxic_plant": "نبات سام",
+  "food_reason.muslimqol.unknown_ingredients": "مكونات غير مؤكدة",
+  "food_reason.muslimqol.honey": "عسل النحل المباح",
+  "food_reason.muslimqol.fish": "مأكولات بحرية / سمك ذو فلس",
+  "food_reason.muslimqol.unclassified": "لم يتم تصنيف هذا الطعام بعد.",
+  "food_reason.muslimqol.unspecified_meat": "مصدر لحم غير محدد",
+  "food_reason.muslimqol.tag_halal": "مصنف كحلال عبر وسوم العناصر",
+  "food_reason.muslimqol.tag_restricted": "مصنف كمحظور عبر وسوم العناصر",
+  "food_reason.muslimqol.tag_doubtful": "مصنف كمشتبه فيه عبر وسوم العناصر",
+  "food_reason.muslimqol.datapack": "مصنف عبر حزمة بيانات",
+  "food_reason.muslimqol.user_override": "محدد بتفضيلات المستخدم",
+
+  "food_policy.muslimqol.allow": "سماح",
+  "food_policy.muslimqol.warn": "تحذير",
+  "food_policy.muslimqol.block": "حظر",
+  "food_policy.muslimqol.policy_line": "سياسة الاستهلاك: %s",
+  "food_policy.muslimqol.warn_message": "تحذير: أنت تستهلك طعاماً مصنفاً كـ %s (%s).",
+  "food_policy.muslimqol.block_message": "لا يمكن استهلاك %s: محظور حسب تفضيلاتك الغذائية.",
+
+  "commands.muslimqol.status": "حالة MuslimQoL: حلال: %s | محظور: %s | مشتبه: %s | غير معروف: %s | سياسة الخنازير: %s",
+  "commands.muslimqol.classify.result": "العنصر: %s\nالحالة: %s\nالمصدر: %s\nالسبب: %s",
+  "commands.muslimqol.reload.success": "تمت إعادة تحميل إعدادات وتفضيلات MuslimQoL بنجاح."
+}
