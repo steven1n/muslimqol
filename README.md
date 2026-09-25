@@ -111,6 +111,13 @@ For advanced JSON metadata schemas and dynamic reloading, see [docs/datapack-api
 
 ---
 
+## Recipe Viewer Compatibility
+
+MuslimQoL includes optional client integration with recipe viewers:
+- **JEI (Just Enough Items)**: Automatically inherits dietary classification tooltips in the ingredient list and recipe views without extra configuration. JEI is optional and never bundled into the release JAR. See [docs/jei-integration.md](docs/jei-integration.md) for details.
+
+---
+
 ## Configuration
 
 ### Server Gameplay Preferences (`config/muslimqol-common.toml`)
