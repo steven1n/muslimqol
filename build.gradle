@@ -23,6 +23,10 @@ repositories {
         name = "Modrinth"
         url = "https://api.modrinth.com/maven"
     }
+    maven {
+        name = "Sleeping Town"
+        url = "https://repo.sleeping.town/"
+    }
 }
 
 base {
@@ -75,6 +79,10 @@ sourceSets.main.resources { srcDir 'src/generated/resources' }
 configurations {
     testCompileClasspath.extendsFrom compileClasspath
     testRuntimeClasspath.extendsFrom runtimeClasspath
+    emiMod {
+        canBeResolved = true
+        canBeConsumed = false
+    }
     if (withFD) {
         farmersDelightMod {
             canBeResolved = true
@@ -87,6 +95,11 @@ dependencies {
     // JEI: client-only development runtime dependency for local compatibility testing.
     // JEI is NOT compiled against, NOT bundled, and NOT present on the server or test runtime.
     clientAdditionalRuntimeClasspath "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
+
+    // EMI: client-only development runtime dependency for local compatibility testing.
+    // EMI is NOT compiled against, NOT bundled, and NOT present on the server or test runtime.
+    emiMod "dev.emi:emi-neoforge:${emi_version}"
+    clientAdditionalRuntimeClasspath "dev.emi:emi-neoforge:${emi_version}"
 
     // Optional Farmer's Delight development runtime for compatibility testing.
     // Activated via -PwithFarmersDelight=true.
@@ -101,6 +114,41 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-params:5.10.2'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+def prepareEmi = tasks.register('prepareEmiMods') {
+    doLast {
+        def emiJar = configurations.emiMod.singleFile
+        file('run/mods').mkdirs()
+        copy {
+            from emiJar
+            into 'run/mods'
+            rename { "emi-${emi_version}.jar" }
+        }
+    }
+}
+
+def cleanupEmi = tasks.register('cleanupEmiMods') {
+    doLast {
+        delete fileTree('run/mods') {
+            include 'emi*.jar'
+        }
+    }
+}
+
+tasks.named('writeClientLegacyClasspath').configure {
+    doLast {
+        def file = legacyClasspathFile.get().asFile
+        if (file.exists()) {
+            def lines = file.readLines().findAll { !it.contains('farmers-delight') && !it.contains('emi-neoforge') }
+            file.text = lines.join('\n') + '\n'
+        }
+    }
+}
+
+tasks.named('runClient', JavaExec).configure {
+    dependsOn prepareEmi
+    finalizedBy cleanupEmi
 }
 
 if (withFD) {
@@ -125,16 +173,6 @@ if (withFD) {
     }
 
     tasks.named('writeServerLegacyClasspath').configure {
-        doLast {
-            def file = legacyClasspathFile.get().asFile
-            if (file.exists()) {
-                def lines = file.readLines().findAll { !it.contains('farmers-delight') }
-                file.text = lines.join('\n') + '\n'
-            }
-        }
-    }
-
-    tasks.named('writeClientLegacyClasspath').configure {
         doLast {
             def file = legacyClasspathFile.get().asFile
             if (file.exists()) {

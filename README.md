@@ -115,6 +115,7 @@ For advanced JSON metadata schemas and dynamic reloading, see [docs/datapack-api
 
 MuslimQoL includes optional client compatibility with recipe viewers:
 - **JEI (Just Enough Items)**: Dietary classification tooltips appear automatically in the JEI ingredient list and recipe views through NeoForge's standard `ItemTooltipEvent` pipeline. No JEI-specific code is used in MuslimQoL's production build. JEI is optional and never bundled into the release JAR. See [docs/jei-integration.md](docs/jei-integration.md) for details.
+- **EMI**: Dietary classification tooltips appear automatically in the EMI index, recipe views, and favorites panels through NeoForge's standard `ItemTooltipEvent` pipeline. No EMI-specific code is used in MuslimQoL's production build. EMI is optional and never bundled into the release JAR. See [docs/emi-compatibility.md](docs/emi-compatibility.md) for details.
 
 ---
 
