@@ -21,12 +21,14 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CompatibilityFrameworkTest {
@@ -388,5 +390,224 @@ class CompatibilityFrameworkTest {
         // Clearing datapack restores Builtin
         FoodClassificationRegistry.clearDatapack();
         assertEquals(FoodStatus.HALAL, FoodClassifier.classify(appleId).status());
+    }
+
+    @Test
+    void testFastPathEquivalenceAcrossTiersAndConflicts() {
+        // Tier 1: BUILTIN (apple)
+        assertEquals(FoodClassifier.resolve(appleId).selected(), FoodClassifier.classify(appleId));
+
+        // Tier 2: UNKNOWN (unknownId)
+        assertEquals(FoodClassifier.resolve(unknownId).selected(), FoodClassifier.classify(unknownId));
+
+        // Tier 3: DATAPACK single
+        ResourceLocation berryId = ResourceLocation.parse("examplemod:berry");
+        FoodClassificationRegistry.registerDatapackEntry(berryId, new FoodClassification(FoodStatus.HALAL, "berry_datapack", ClassificationSource.DATAPACK));
+        assertEquals(FoodClassifier.resolve(berryId).selected(), FoodClassifier.classify(berryId));
+
+        // Tier 4: DATAPACK conflict
+        ResourceLocation contestedId = ResourceLocation.parse("examplemod:contested");
+        FoodClassificationRegistry.registerDatapackEntry(contestedId, new FoodClassification(FoodStatus.HALAL, "contested_a", ClassificationSource.DATAPACK, ClassificationProviderId.parse("pack_a:datapack"), ClassificationPriority.DATAPACK));
+        FoodClassificationRegistry.registerDatapackEntry(contestedId, new FoodClassification(FoodStatus.RESTRICTED, "contested_b", ClassificationSource.DATAPACK, ClassificationProviderId.parse("pack_b:datapack"), ClassificationPriority.DATAPACK));
+        assertTrue(FoodClassifier.resolve(contestedId).conflicted());
+        assertEquals(FoodClassifier.resolve(contestedId).selected(), FoodClassifier.classify(contestedId));
+
+        // Tier 5: USER_OVERRIDE
+        ResourceLocation overrideId = ResourceLocation.parse("examplemod:overridden");
+        FoodClassificationRegistry.registerUserOverride(overrideId, new FoodClassification(FoodStatus.RESTRICTED, "user_choice", ClassificationSource.USER_OVERRIDE));
+        assertEquals(FoodClassifier.resolve(overrideId).selected(), FoodClassifier.classify(overrideId));
+    }
+
+    @Test
+    void testMalformedProviderIdentityNormalization() {
+        ClassificationProviderId registeredId = ClassificationProviderId.parse("valid_mod:provider");
+        ClassificationProviderId spoofedId = ClassificationProviderId.parse("spoofed_mod:fake");
+
+        FoodCompatibilityManager.registerProvider(new FoodClassificationProvider() {
+            @Override
+            public ClassificationProviderId id() { return registeredId; }
+            @Override
+            public ClassificationPriority priority() { return ClassificationPriority.DATAPACK; }
+            @Override
+            public Optional<FoodClassification> classify(ResourceLocation itemId, ItemStack stack) {
+                if (itemId.equals(unknownId)) {
+                    return Optional.of(new FoodClassification(FoodStatus.HALAL, "reason", ClassificationSource.DATAPACK, spoofedId, ClassificationPriority.DATAPACK));
+                }
+                return Optional.empty();
+            }
+        });
+
+        ClassificationResolution resolution = FoodClassifier.resolve(unknownId);
+        assertEquals(FoodStatus.HALAL, resolution.selected().status());
+        assertEquals(registeredId, resolution.selected().providerId(), "Selected providerId must be normalized to registered provider ID");
+        assertEquals(registeredId, resolution.candidates().get(0).providerId(), "Candidate providerId must be normalized to registered provider ID");
+        assertEquals(registeredId, resolution.candidates().get(0).classification().providerId(), "Candidate inner classification providerId must be normalized");
+        assertEquals(registeredId, FoodClassifier.classify(unknownId).providerId(), "Fast path providerId must be normalized to registered provider ID");
+    }
+
+    @Test
+    void testElevatedPriorityNormalization() {
+        ClassificationProviderId modProviderId = ClassificationProviderId.parse("sneaky_mod:provider");
+
+        FoodCompatibilityManager.registerProvider(new FoodClassificationProvider() {
+            @Override
+            public ClassificationProviderId id() { return modProviderId; }
+            @Override
+            public ClassificationPriority priority() { return ClassificationPriority.DATAPACK; }
+            @Override
+            public Optional<FoodClassification> classify(ResourceLocation itemId, ItemStack stack) {
+                if (itemId.equals(unknownId)) {
+                    return Optional.of(new FoodClassification(FoodStatus.HALAL, "sneaky_reason", ClassificationSource.USER_OVERRIDE, modProviderId, ClassificationPriority.USER_OVERRIDE));
+                }
+                return Optional.empty();
+            }
+        });
+
+        ClassificationResolution resolution = FoodClassifier.resolve(unknownId);
+        assertEquals(FoodStatus.HALAL, resolution.selected().status());
+        assertEquals(ClassificationPriority.DATAPACK, resolution.selected().priority());
+        assertEquals(ClassificationPriority.DATAPACK, resolution.candidates().get(0).priority());
+        assertEquals(ClassificationPriority.DATAPACK, resolution.candidates().get(0).classification().priority());
+        assertEquals(ClassificationPriority.DATAPACK, FoodClassifier.classify(unknownId).priority());
+    }
+
+    @Test
+    void testReservedProviderRegistrationRejection() {
+        assertThrows(IllegalArgumentException.class, () -> FoodCompatibilityManager.registerProvider(new FoodClassificationProvider() {
+            @Override
+            public ClassificationProviderId id() { return ClassificationProviderId.USER_OVERRIDE; }
+            @Override
+            public ClassificationPriority priority() { return ClassificationPriority.USER_OVERRIDE; }
+            @Override
+            public Optional<FoodClassification> classify(ResourceLocation itemId, ItemStack stack) { return Optional.empty(); }
+        }));
+
+        assertThrows(IllegalArgumentException.class, () -> FoodCompatibilityManager.registerProvider(new FoodClassificationProvider() {
+            @Override
+            public ClassificationProviderId id() { return ClassificationProviderId.DATAPACK; }
+            @Override
+            public ClassificationPriority priority() { return ClassificationPriority.DATAPACK; }
+            @Override
+            public Optional<FoodClassification> classify(ResourceLocation itemId, ItemStack stack) { return Optional.empty(); }
+        }));
+
+        assertThrows(IllegalArgumentException.class, () -> FoodCompatibilityManager.registerProvider(new FoodClassificationProvider() {
+            @Override
+            public ClassificationProviderId id() { return ClassificationProviderId.ITEM_TAG; }
+            @Override
+            public ClassificationPriority priority() { return ClassificationPriority.ITEM_TAG; }
+            @Override
+            public Optional<FoodClassification> classify(ResourceLocation itemId, ItemStack stack) { return Optional.empty(); }
+        }));
+
+        assertThrows(IllegalArgumentException.class, () -> FoodCompatibilityManager.registerProvider(new FoodClassificationProvider() {
+            @Override
+            public ClassificationProviderId id() { return ClassificationProviderId.BUILTIN; }
+            @Override
+            public ClassificationPriority priority() { return ClassificationPriority.BUILTIN; }
+            @Override
+            public Optional<FoodClassification> classify(ResourceLocation itemId, ItemStack stack) { return Optional.empty(); }
+        }));
+    }
+
+    @Test
+    void testReservedProviderUnregistrationRejection() {
+        assertFalse(FoodCompatibilityManager.unregisterProvider(ClassificationProviderId.USER_OVERRIDE));
+        assertFalse(FoodCompatibilityManager.unregisterProvider(ClassificationProviderId.DATAPACK));
+        assertFalse(FoodCompatibilityManager.unregisterProvider(ClassificationProviderId.ITEM_TAG));
+        assertFalse(FoodCompatibilityManager.unregisterProvider(ClassificationProviderId.BUILTIN));
+    }
+
+    @Test
+    void testDatapackMultiCandidatePreservation() {
+        JsonObject itemEntryA = JsonParser.parseString("""
+                {
+                  "item": "examplemod:multi_berry",
+                  "status": "HALAL",
+                  "reason": "halal_variant"
+                }
+                """).getAsJsonObject();
+        JsonObject itemEntryB = JsonParser.parseString("""
+                {
+                  "item": "examplemod:multi_berry",
+                  "status": "RESTRICTED",
+                  "reason": "restricted_variant"
+                }
+                """).getAsJsonObject();
+
+        ResourceLocation commonBerryId = ResourceLocation.parse("examplemod:multi_berry");
+        Map<ResourceLocation, List<FoodClassification>> multiParsed = FoodClassificationJsonLoader.parseAllMulti(
+                Map.of(
+                        ResourceLocation.parse("pack_a:food_classifications/common"), itemEntryA,
+                        ResourceLocation.parse("pack_b:food_classifications/common"), itemEntryB
+                )
+        );
+
+        List<FoodClassification> commonList = multiParsed.get(commonBerryId);
+        assertNotNull(commonList);
+        assertEquals(2, commonList.size(), "Both datapack candidates must be preserved");
+
+        FoodClassificationRegistry.setDatapackMultiClassifications(multiParsed);
+
+        ClassificationResolution resolution = FoodClassifier.resolve(commonBerryId);
+        assertNotNull(resolution);
+        assertTrue(resolution.conflicted(), "Different statuses at DATAPACK priority must mark conflicted == true");
+        assertEquals(2, resolution.candidates().size(), "Candidates list must contain both datapack candidates");
+        assertEquals("pack_a:datapack", resolution.selected().providerId().toString(), "pack_a must win lexicographically over pack_b");
+        assertEquals(FoodStatus.HALAL, resolution.selected().status());
+    }
+
+    @Test
+    void testMetadataFormatValidation() {
+        JsonObject validJson = JsonParser.parseString("""
+                {
+                  "format": 1,
+                  "name": "Valid Pack",
+                  "target_mod": "somemod"
+                }
+                """).getAsJsonObject();
+        Optional<CompatibilityMetadata> validMeta = CompatibilityMetadata.fromJson(validJson);
+        assertTrue(validMeta.isPresent());
+        assertEquals(1, validMeta.get().format());
+
+        JsonObject invalidJson = JsonParser.parseString("""
+                {
+                  "format": 999,
+                  "name": "Future Pack",
+                  "target_mod": "somemod"
+                }
+                """).getAsJsonObject();
+        Optional<CompatibilityMetadata> invalidMeta = CompatibilityMetadata.fromJson(invalidJson);
+        assertTrue(invalidMeta.isEmpty(), "Unsupported format 999 must be rejected safely");
+
+        JsonObject zeroJson = JsonParser.parseString("""
+                {
+                  "format": 0,
+                  "name": "Zero Pack"
+                }
+                """).getAsJsonObject();
+        assertTrue(CompatibilityMetadata.fromJson(zeroJson).isEmpty(), "Format 0 must be rejected");
+    }
+
+    @Test
+    void testAtomicDatapackReloadConcurrency() {
+        ResourceLocation testId = ResourceLocation.parse("testmod:apple");
+        FoodClassification c1 = new FoodClassification(FoodStatus.HALAL, "c1", ClassificationSource.DATAPACK);
+        FoodClassification c2 = new FoodClassification(FoodStatus.RESTRICTED, "c2", ClassificationSource.DATAPACK);
+
+        FoodClassificationRegistry.registerDatapackEntry(testId, c1);
+
+        for (int i = 0; i < 100; i++) {
+            FoodClassification current = FoodClassifier.classify(testId);
+            assertNotNull(current);
+            assertTrue(current.status() == FoodStatus.HALAL || current.status() == FoodStatus.RESTRICTED,
+                    "Reader must always observe a complete valid state, never empty or partial");
+
+            if (i % 2 == 0) {
+                FoodClassificationRegistry.setDatapackMultiClassifications(Map.of(testId, List.of(c2)));
+            } else {
+                FoodClassificationRegistry.setDatapackMultiClassifications(Map.of(testId, List.of(c1)));
+            }
+        }
     }
 }
