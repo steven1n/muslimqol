@@ -49,11 +49,6 @@
       "item": "farmersdelight:grilled_salmon",
       "status": "HALAL",
       "reason": "fish"
-    },
-    {
-      "item": "farmersdelight:squid_ink_pasta",
-      "status": "HALAL",
-      "reason": "fish"
     }
   ]
 }

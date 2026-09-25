@@ -14,6 +14,8 @@
   "food_reason.muslimqol.fish": "مأكولات بحرية / سمك ذو فلس",
   "food_reason.muslimqol.unclassified": "لم يتم تصنيف هذا الطعام بعد.",
   "food_reason.muslimqol.unspecified_meat": "مصدر لحم غير محدد",
+  "food_reason.muslimqol.audited_permitted_recipe": "الوصفة داخل اللعبة مدققة ولا تحتوي على مكونات محظورة",
+  "food_reason.muslimqol.seafood_policy_unspecified": "مأكولات بحرية بدون تحديد للحكم الفقهي",
   "food_reason.muslimqol.tag_halal": "مصنف كحلال عبر وسوم العناصر",
   "food_reason.muslimqol.tag_restricted": "مصنف كمحظور عبر وسوم العناصر",
   "food_reason.muslimqol.tag_doubtful": "مصنف كمشتبه فيه عبر وسوم العناصر",

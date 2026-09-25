@@ -38,17 +38,17 @@
     {
       "item": "farmersdelight:wheat_dough",
       "status": "HALAL",
-      "reason": "plant_based"
+      "reason": "audited_permitted_recipe"
     },
     {
       "item": "farmersdelight:raw_pasta",
       "status": "HALAL",
-      "reason": "plant_based"
+      "reason": "audited_permitted_recipe"
     },
     {
       "item": "farmersdelight:pie_crust",
       "status": "HALAL",
-      "reason": "plant_based"
+      "reason": "audited_permitted_recipe"
     },
     {
       "item": "farmersdelight:kelp_roll",

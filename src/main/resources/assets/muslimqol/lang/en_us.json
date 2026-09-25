@@ -14,6 +14,8 @@
   "food_reason.muslimqol.fish": "Seafood / Scaled fish",
   "food_reason.muslimqol.unclassified": "This food has not been classified.",
   "food_reason.muslimqol.unspecified_meat": "Unspecified meat source",
+  "food_reason.muslimqol.audited_permitted_recipe": "Audited in-game recipe contains no restricted ingredients",
+  "food_reason.muslimqol.seafood_policy_unspecified": "Seafood with unspecified jurisprudence policy",
   "food_reason.muslimqol.tag_halal": "Classified as Halal via item tag",
   "food_reason.muslimqol.tag_restricted": "Classified as Restricted via item tag",
   "food_reason.muslimqol.tag_doubtful": "Classified as Doubtful via item tag",

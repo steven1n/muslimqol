@@ -13,12 +13,12 @@
     {
       "item": "farmersdelight:milk_bottle",
       "status": "HALAL",
-      "reason": "plant_based"
+      "reason": "audited_permitted_recipe"
     },
     {
       "item": "farmersdelight:hot_cocoa",
       "status": "HALAL",
-      "reason": "plant_based"
+      "reason": "audited_permitted_recipe"
     }
   ]
 }

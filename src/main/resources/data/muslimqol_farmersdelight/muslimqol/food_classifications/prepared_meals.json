@@ -18,7 +18,7 @@
     {
       "item": "farmersdelight:onion_soup",
       "status": "HALAL",
-      "reason": "plant_based"
+      "reason": "audited_permitted_recipe"
     },
     {
       "item": "farmersdelight:vegetable_noodles",
@@ -58,17 +58,17 @@
     {
       "item": "farmersdelight:fried_rice",
       "status": "HALAL",
-      "reason": "plant_based"
+      "reason": "audited_permitted_recipe"
     },
     {
       "item": "farmersdelight:fried_egg",
       "status": "HALAL",
-      "reason": "plant_based"
+      "reason": "audited_permitted_recipe"
     },
     {
       "item": "farmersdelight:egg_sandwich",
       "status": "HALAL",
-      "reason": "plant_based"
+      "reason": "audited_permitted_recipe"
     }
   ]
 }
