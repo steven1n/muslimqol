@@ -1,23 +1,68 @@
 # Gradle
 .gradle/
 build/
+out/
 
-# IDE
+# Minecraft / NeoForge development runtime
+run/
+runs/
+
+# Generated sources
+src/generated/
+
+# IntelliJ IDEA
 .idea/
+*.iml
 *.ipr
 *.iws
-*.iml
-out/
+
+# VS Code
 .vscode/
 
-# OS
-.DS_Store
-Thumbs.db
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
 
-# Run directory
-run/
-run-data/
-run-server/
-crash-reports/
+# Java
+*.class
+hs_err_pid*
+replay_pid*
+
+# Logs
 logs/
 *.log
+server_console.log
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux / editor temp files
+*~
+*.swp
+*.swo
+
+# Environment / local secrets
+.env
+.env.*
+!.env.example
+
+# Local testing / temporary files
+tmp/
+temp/
+
+# Local Minecraft crash reports
+crash-reports/
+
+# CurseForge / Modrinth local upload artifacts, if generated later
+release/
+releases/
