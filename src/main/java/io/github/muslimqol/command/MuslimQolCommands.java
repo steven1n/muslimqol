@@ -89,17 +89,24 @@ public class MuslimQolCommands {
                     winner.priority().name(),
                     winner.reason()
             ), false);
+            if (winner.ruleId() != null) {
+                source.sendSuccess(() -> Component.literal("  Rule: " + winner.ruleId().toString()), false);
+            }
 
             if (resolution.candidates().size() > 1) {
                 source.sendSuccess(() -> Component.translatable("commands.muslimqol.classify.candidates_header"), false);
                 for (FoodClassificationCandidate candidate : resolution.candidates()) {
-                    boolean isWinner = candidate.classification() == winner;
+                    boolean isWinner = candidate.classification().equals(winner);
                     String tag = isWinner ? " [WINNER]" : " (priority: " + candidate.priority().name() + ")";
+                    String ruleStr = candidate.classification().ruleId() != null
+                            ? " [rule: " + candidate.classification().ruleId().toString() + "]"
+                            : "";
                     source.sendSuccess(() -> Component.literal("  " + candidate.classification().status().name()
-                            + " <- " + candidate.providerId().toString() + tag), false);
+                            + " <- " + candidate.providerId().toString() + ruleStr + tag), false);
                 }
             } else {
-                source.sendSuccess(() -> Component.literal("Candidates:\n  " + winner.status().name() + " <- " + winner.providerId().toString()), false);
+                String ruleStr = winner.ruleId() != null ? " [rule: " + winner.ruleId().toString() + "]" : "";
+                source.sendSuccess(() -> Component.literal("Candidates:\n  " + winner.status().name() + " <- " + winner.providerId().toString() + ruleStr), false);
             }
         }
 

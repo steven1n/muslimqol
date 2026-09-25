@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import io.github.muslimqol.api.ClassificationPriority;
 import io.github.muslimqol.api.ClassificationProviderId;
+import io.github.muslimqol.api.ClassificationRuleId;
 import io.github.muslimqol.api.ClassificationSource;
 import io.github.muslimqol.api.FoodClassification;
 import io.github.muslimqol.api.FoodStatus;
@@ -97,11 +98,27 @@ public final class FoodClassificationJsonLoader {
             parseEntry(fileId, obj, result);
         }
 
-        // Sort candidates deterministically by providerId
+        // Sort candidates deterministically: priority DESC, providerId ASC, ruleId ASC, status ASC, reason ASC
         Map<ResourceLocation, List<FoodClassification>> sortedResult = new HashMap<>();
         result.forEach((id, list) -> {
             List<FoodClassification> copy = new ArrayList<>(list);
-            copy.sort(Comparator.comparing(c -> c.providerId().toString()));
+            copy.sort((a, b) -> {
+                int p = Integer.compare(b.priority().level(), a.priority().level());
+                if (p != 0) return p;
+                int prov = a.providerId().compareTo(b.providerId());
+                if (prov != 0) return prov;
+                if (a.ruleId() != null && b.ruleId() != null) {
+                    int r = a.ruleId().compareTo(b.ruleId());
+                    if (r != 0) return r;
+                } else if (a.ruleId() != null) {
+                    return -1;
+                } else if (b.ruleId() != null) {
+                    return 1;
+                }
+                int s = a.status().name().compareTo(b.status().name());
+                if (s != 0) return s;
+                return a.reason().compareTo(b.reason());
+            });
             sortedResult.put(id, Collections.unmodifiableList(copy));
         });
 
@@ -170,12 +187,22 @@ public final class FoodClassificationJsonLoader {
                 ? ClassificationProviderId.of(fallbackId.getNamespace(), "datapack")
                 : ClassificationProviderId.DATAPACK;
 
+        ClassificationRuleId ruleId = null;
+        if (fallbackId != null) {
+            String path = fallbackId.getPath();
+            if (!path.startsWith("food_classifications/")) {
+                path = "food_classifications/" + path;
+            }
+            ruleId = ClassificationRuleId.of(fallbackId.getNamespace(), path);
+        }
+
         FoodClassification classification = new FoodClassification(
                 status,
                 reason,
                 ClassificationSource.DATAPACK,
                 providerId,
-                ClassificationPriority.DATAPACK
+                ClassificationPriority.DATAPACK,
+                ruleId
         );
 
         result.computeIfAbsent(targetId, k -> new ArrayList<>()).add(classification);

@@ -16,7 +16,8 @@ public record FoodClassification(
     String reason,
     ClassificationSource source,
     ClassificationProviderId providerId,
-    ClassificationPriority priority
+    ClassificationPriority priority,
+    ClassificationRuleId ruleId
 ) {
     public FoodClassification {
         Objects.requireNonNull(status, "status must not be null");
@@ -38,17 +39,24 @@ public record FoodClassification(
     }
 
     /**
+     * Backward-compatible 5-argument constructor.
+     */
+    public FoodClassification(FoodStatus status, String reason, ClassificationSource source, ClassificationProviderId providerId, ClassificationPriority priority) {
+        this(status, reason, source, providerId, priority, null);
+    }
+
+    /**
      * Backward-compatible 3-argument constructor for v0.1 calls.
      */
     public FoodClassification(FoodStatus status, String reason, ClassificationSource source) {
-        this(status, reason, source, null, null);
+        this(status, reason, source, null, null, null);
     }
 
     /**
      * Convenience constructor with explicit provider identity.
      */
     public FoodClassification(FoodStatus status, String reason, ClassificationSource source, ClassificationProviderId providerId) {
-        this(status, reason, source, providerId, ClassificationPriority.fromSource(source));
+        this(status, reason, source, providerId, ClassificationPriority.fromSource(source), null);
     }
 
     /**
