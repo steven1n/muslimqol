@@ -1,32 +1,77 @@
 name: Third-Party Mod Compatibility Request
-description: Request built-in support or tag mappings for a third-party mod
+description: Request food tag or classification integration for a third-party mod
 title: "[Compat]: "
 labels: ["compatibility"]
 body:
   - type: markdown
     attributes:
       value: |
-        Request food tag or classification integration with external mods (e.g., Farmer's Delight, Pam's HarvestCraft, Alex's Mobs).
+        Use this template to report compatibility findings or request classification/tag mappings for third-party mods.
+
+        > **Note**: While MuslimQoL is designed to be extensible via datapacks and tags, built-in compatibility is prioritized based on popularity, licensing, and maintainability. Filing a request does not guarantee official built-in integration, but community datapack recipes can always be created.
   - type: input
     id: mod-name
     attributes:
-      label: Mod Name & Mod ID
-      description: Name of the mod and its namespace identifier (e.g. `Farmer's Delight` (`farmersdelight`))
-      placeholder: "Mod Name (modid)"
+      label: Mod Name
+      description: Name of the third-party mod and its namespace identifier (e.g. Farmer's Delight (`farmersdelight`)).
+      placeholder: "Farmer's Delight"
+    validations:
+      required: true
+  - type: input
+    id: mod-version
+    attributes:
+      label: Mod Version
+      description: Exact version of the third-party mod tested or requested (e.g. 1.2.4).
+      placeholder: "1.2.4"
+    validations:
+      required: true
+  - type: input
+    id: mc-version
+    attributes:
+      label: Minecraft Version
+      description: Minecraft version used (e.g. 1.21.1).
+      placeholder: "1.21.1"
+    validations:
+      required: true
+  - type: input
+    id: loader-version
+    attributes:
+      label: Loader Version
+      description: NeoForge loader version (e.g. 21.1.176).
+      placeholder: "21.1.176"
     validations:
       required: true
   - type: input
     id: mod-link
     attributes:
-      label: Mod URL
-      description: Link to CurseForge, Modrinth, or GitHub
+      label: Mod URL / Repository
+      description: Link to CurseForge, Modrinth, or GitHub project page.
       placeholder: "https://modrinth.com/mod/..."
+    validations:
+      required: false
+  - type: textarea
+    id: relevant-foods
+    attributes:
+      label: Relevant Food Items & Registry IDs
+      description: List the notable food items introduced by this mod and their registry IDs if known (e.g. `farmersdelight:bacon_and_eggs`, `farmersdelight:pork_wrap`).
+      placeholder: |
+        - `modid:item_one`: Cooked meat item
+        - `modid:item_two`: Plant-based soup
     validations:
       required: true
   - type: textarea
-    id: notable-foods
+    id: observed-behavior
     attributes:
-      label: Notable Food Items / Mechanics
-      description: List swine-derived, plant-based, or special meat items introduced by this mod.
+      label: Observed Behavior
+      description: How MuslimQoL currently interacts with these items (e.g., all items show UNKNOWN fallback, tooltips render correctly).
+      placeholder: "All food items currently fallback to UNKNOWN status..."
+    validations:
+      required: true
+  - type: textarea
+    id: desired-integration
+    attributes:
+      label: Desired Integration
+      description: Desired classification mapping, tag assignments, or special consumption handling.
+      placeholder: "Suggest classifying modid:item_one as RESTRICTED and modid:item_two as HALAL..."
     validations:
       required: true

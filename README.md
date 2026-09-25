@@ -16,6 +16,17 @@ A configurable Muslim-friendly quality-of-life framework for Minecraft.
 
 ---
 
+## Help Test v0.1.0-rc1
+
+The first public release candidate is available for testing.
+
+- **Download**: [GitHub Releases (v0.1.0-rc1)](https://github.com/steven1n/muslimqol/releases/tag/v0.1.0-rc1)
+- **Testing Guide**: See [docs/testing/rc1-external-testing.md](docs/testing/rc1-external-testing.md) for test areas, scenarios, and reporting guidelines.
+
+Please report bugs and classification issues through [GitHub Issues](https://github.com/steven1n/muslimqol/issues).
+
+---
+
 ## Overview
 
 MuslimQoL helps Muslim players manage food-related gameplay preferences within Minecraft. The framework provides flexible, data-driven food classification and server-authoritative observance controls.

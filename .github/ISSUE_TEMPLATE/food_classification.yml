@@ -7,19 +7,50 @@ body:
     attributes:
       value: |
         Use this template to request a classification for a food item or propose adjusting an existing classification.
-        *Note*: Terminology describes gameplay classification only. The mod does not claim religious certification.
+
+        > **Notice**: MuslimQoL provides configurable gameplay classifications and observance-oriented tools. Terminology describes gameplay classification only; the mod does not claim religious certification.
+        > **Guiding Principle**: When evidence or ingredient composition is uncertain, **UNKNOWN** is preferred over guessing.
   - type: input
-    id: item-id
+    id: display-name
     attributes:
-      label: Item Identifier
-      description: The full ResourceLocation of the food item (e.g. `minecraft:pumpkin_pie`, `farmersdelight:bacon_and_eggs`)
-      placeholder: "modid:food_name"
+      label: Item Display Name
+      description: The in-game display name of the item (e.g. Cooked Salmon, Pumpkin Pie).
+      placeholder: "Cooked Salmon"
+    validations:
+      required: true
+  - type: input
+    id: registry-id
+    attributes:
+      label: Item Registry ID
+      description: The full ResourceLocation ID (e.g. `minecraft:cooked_salmon`, `farmersdelight:bacon_and_eggs`).
+      placeholder: "minecraft:item_id"
+    validations:
+      required: true
+  - type: input
+    id: source-mod
+    attributes:
+      label: Source Mod
+      description: The mod providing this food item (or `Minecraft` for vanilla items).
+      placeholder: "Minecraft"
     validations:
       required: true
   - type: dropdown
-    id: proposed-status
+    id: current-status
     attributes:
-      label: Proposed Classification Status
+      label: Current Classification
+      description: Current in-game status assigned to this item.
+      options:
+        - UNKNOWN (or not yet classified)
+        - HALAL
+        - RESTRICTED
+        - DOUBTFUL
+    validations:
+      required: true
+  - type: dropdown
+    id: suggested-status
+    attributes:
+      label: Suggested Classification
+      description: The classification you propose.
       options:
         - HALAL
         - RESTRICTED
@@ -28,14 +59,18 @@ body:
     validations:
       required: true
   - type: textarea
-    id: rationale
+    id: reason
     attributes:
-      label: Ingredient / Gameplay Rationale
-      description: Explain the composition or nature of the item (e.g., plant-based, contains swine derivatives, unknown origin).
+      label: Reason for Classification
+      description: Detail the composition, ingredients, crafting recipe, or mob drops supporting this classification.
+      placeholder: "Explain why this item should have this classification..."
     validations:
       required: true
   - type: textarea
-    id: recipe
+    id: references
     attributes:
-      label: Crafting Recipe / Source
-      description: List the recipe ingredients or mob drops that produce this food item.
+      label: References / Sources
+      description: Relevant scholarly references, dietary rulings, or factual documentation (if applicable).
+      placeholder: "Citations, rulings, or documentation..."
+    validations:
+      required: false

@@ -7,12 +7,27 @@ body:
     attributes:
       value: |
         Thank you for reporting an issue! Please provide as much detail as possible to help reproduce and resolve it.
+  - type: checkboxes
+    id: acknowledgements
+    attributes:
+      label: Pre-flight Checklist
+      options:
+        - label: I tested with the latest available MuslimQoL release candidate.
+          required: true
   - type: input
     id: version
     attributes:
       label: MuslimQoL Version
-      description: What version of MuslimQoL are you running? (e.g. 0.1.0)
-      placeholder: "0.1.0"
+      description: Exact version of MuslimQoL installed (e.g. 0.1.0-rc1)
+      placeholder: "0.1.0-rc1"
+    validations:
+      required: true
+  - type: input
+    id: mc-version
+    attributes:
+      label: Minecraft Version
+      description: Minecraft version (e.g. 1.21.1)
+      placeholder: "1.21.1"
     validations:
       required: true
   - type: input
@@ -23,6 +38,22 @@ body:
       placeholder: "21.1.176"
     validations:
       required: true
+  - type: input
+    id: java-version
+    attributes:
+      label: Java Version
+      description: Java runtime version (e.g. 21.0.3, Oracle OpenJDK 21)
+      placeholder: "Java 21"
+    validations:
+      required: false
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      description: Operating system and version (e.g. Windows 11, macOS Sequoia, Ubuntu 24.04)
+      placeholder: "Windows 11"
+    validations:
+      required: false
   - type: dropdown
     id: environment
     attributes:
@@ -33,6 +64,14 @@ body:
         - LAN Multiplayer
     validations:
       required: true
+  - type: textarea
+    id: installed-mods
+    attributes:
+      label: Installed Mods
+      description: Other installed mods, modpack name, or paste a mod list.
+      placeholder: "MuslimQoL, Farmer's Delight, JEI..."
+    validations:
+      required: false
   - type: textarea
     id: description
     attributes:
@@ -52,8 +91,26 @@ body:
     validations:
       required: true
   - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually occurred.
+    validations:
+      required: true
+  - type: textarea
     id: logs
     attributes:
       label: Crash Report / Log Output
-      description: Paste relevant crash reports or logs here (using code blocks).
+      description: |
+        Paste relevant log snippets, or drag and drop your `logs/latest.log` / `crash-reports/crash-*.txt` file here.
+        Alternatively, link to an external paste (e.g. mclo.gs, gist.github.com, pastebin).
       render: shell
+    validations:
+      required: false
