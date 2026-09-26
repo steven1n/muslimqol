@@ -116,54 +116,71 @@ def extract_food_properties_fields(class_bytes: bytes) -> List[str]:
     i = 1
     while i < cp_count:
         if idx >= len(class_bytes):
-            break
+            raise ValueError(f"Truncated constant pool: expected {cp_count} entries, reached EOF at byte {idx}")
         tag = class_bytes[idx]
         idx += 1
         if tag == 1:  # Utf8
             if idx + 2 > len(class_bytes):
-                break
+                raise ValueError(f"Truncated Utf8 entry header at byte {idx}")
             length, = struct.unpack(">H", class_bytes[idx:idx+2])
             idx += 2
+            if idx + length > len(class_bytes):
+                raise ValueError(f"Truncated Utf8 data at byte {idx}")
             val = class_bytes[idx:idx+length].decode("utf-8", errors="replace")
             idx += length
             cp[i] = ("utf8", val)
         elif tag in (3, 4):  # Integer, Float
+            if idx + 4 > len(class_bytes):
+                raise ValueError(f"Truncated Integer/Float at byte {idx}")
             idx += 4
         elif tag in (5, 6):  # Long, Double
+            if idx + 8 > len(class_bytes):
+                raise ValueError(f"Truncated Long/Double at byte {idx}")
             idx += 8
             i += 1
         elif tag in (7, 8):  # Class, String
+            if idx + 2 > len(class_bytes):
+                raise ValueError(f"Truncated Class/String reference at byte {idx}")
             idx += 2
         elif tag in (9, 10, 11, 12):  # Fieldref, Methodref, etc.
+            if idx + 4 > len(class_bytes):
+                raise ValueError(f"Truncated MemberRef at byte {idx}")
             idx += 4
         elif tag in (15, 16, 19, 20):  # MethodHandle, etc.
-            idx += 3 if tag == 15 else 2
+            needed = 3 if tag == 15 else 2
+            if idx + needed > len(class_bytes):
+                raise ValueError(f"Truncated MethodHandle/Type at byte {idx}")
+            idx += needed
         elif tag in (17, 18):  # Dynamic, InvokeDynamic
+            if idx + 4 > len(class_bytes):
+                raise ValueError(f"Truncated Dynamic at byte {idx}")
             idx += 4
         else:
-            break
+            raise ValueError(f"Unknown constant pool tag {tag} at byte {idx - 1}")
         i += 1
 
     if idx + 8 > len(class_bytes):
-        return []
+        raise ValueError(f"Truncated class header at byte {idx}")
     access_flags, this_class, super_class, interfaces_count = struct.unpack(">HHHH", class_bytes[idx:idx+8])
     idx += 8 + interfaces_count * 2
     if idx + 2 > len(class_bytes):
-        return []
+        raise ValueError(f"Truncated interfaces/fields count at byte {idx}")
     fields_count, = struct.unpack(">H", class_bytes[idx:idx+2])
     idx += 2
 
     food_fields: List[str] = []
     for _ in range(fields_count):
         if idx + 8 > len(class_bytes):
-            break
+            raise ValueError(f"Truncated field definition at byte {idx}")
         f_flags, name_idx, desc_idx, attr_count = struct.unpack(">HHHH", class_bytes[idx:idx+8])
         idx += 8
         for _ in range(attr_count):
             if idx + 6 > len(class_bytes):
-                break
+                raise ValueError(f"Truncated attribute header at byte {idx}")
             _, attr_len = struct.unpack(">HI", class_bytes[idx:idx+6])
             idx += 6 + attr_len
+            if idx > len(class_bytes):
+                raise ValueError(f"Truncated attribute data at byte {idx}")
 
         name_entry = cp[name_idx] if name_idx < len(cp) else None
         desc_entry = cp[desc_idx] if desc_idx < len(cp) else None
@@ -301,8 +318,15 @@ def read_mod_jar(jar_path: str, mod_id: str) -> JarData:
                     candidate_id = f"{mod_id}:{f.lower()}"
                     if candidate_id in discovered_items:
                         bytecode_food_candidates.add(candidate_id)
-            except Exception:
-                pass
+            except Exception as e:
+                diagnostics.append(
+                    ParseDiagnostic(
+                        source_path=cls_name,
+                        error_type="FOOD_PROPERTIES_BYTECODE_PARSE_ERROR",
+                        message=f"Failed to inspect FoodProperties fields: {e}",
+                        severity="WARNING",
+                    )
+                )
 
     tag_registry = TagRegistry(raw_tags)
 
