@@ -4,7 +4,9 @@ import com.google.gson.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Locale;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * Optional metadata descriptor for compatibility datapacks located at
@@ -13,15 +15,24 @@ import java.util.Optional;
  * @param format Format version number (currently 1)
  * @param name Human-readable name of the compatibility pack
  * @param targetMod Required mod ID for this compatibility pack (null or empty if universally applicable)
+ * @param targetVersion Target mod version this pack was verified against (null if unversioned legacy pack)
+ * @param referenceJarSha256 SHA-256 hash of the reference mod JAR used for auditing (informational only)
  */
 public record CompatibilityMetadata(
     int format,
     String name,
-    String targetMod
+    String targetMod,
+    String targetVersion,
+    String referenceJarSha256
 ) {
     private static final Logger LOGGER = LoggerFactory.getLogger(CompatibilityMetadata.class);
+    private static final Pattern SHA256_PATTERN = Pattern.compile("^[0-9a-fA-F]{64}$");
 
     public static final int CURRENT_FORMAT = 1;
+
+    public CompatibilityMetadata(int format, String name, String targetMod) {
+        this(format, name, targetMod, null, null);
+    }
 
     public static MetadataParseResult parse(JsonObject obj) {
         if (obj == null) {
@@ -46,16 +57,68 @@ public record CompatibilityMetadata(
             return MetadataParseResult.invalid("Unsupported format version: " + format);
         }
 
-        String name = obj.has("name") && obj.get("name").isJsonPrimitive() ? obj.get("name").getAsString() : "Unnamed Compatibility Pack";
-        String targetMod = null;
-        if (obj.has("target_mod") && !obj.get("target_mod").isJsonNull()) {
-            targetMod = obj.get("target_mod").getAsString().trim();
-            if (targetMod.isEmpty()) {
-                targetMod = null;
+        String name = "Unnamed Compatibility Pack";
+        if (obj.has("name")) {
+            var nameElem = obj.get("name");
+            if (!nameElem.isJsonNull()) {
+                if (!nameElem.isJsonPrimitive() || !nameElem.getAsJsonPrimitive().isString()) {
+                    return MetadataParseResult.invalid("Invalid 'name' field: expected string");
+                }
+                String trimmed = nameElem.getAsString().trim();
+                if (!trimmed.isEmpty()) {
+                    name = trimmed;
+                }
             }
         }
 
-        return MetadataParseResult.valid(new CompatibilityMetadata(CURRENT_FORMAT, name, targetMod));
+        String targetMod = null;
+        if (obj.has("target_mod")) {
+            var modElem = obj.get("target_mod");
+            if (!modElem.isJsonNull()) {
+                if (!modElem.isJsonPrimitive() || !modElem.getAsJsonPrimitive().isString()) {
+                    return MetadataParseResult.invalid("Invalid 'target_mod' field: expected string");
+                }
+                String trimmed = modElem.getAsString().trim();
+                if (!trimmed.isEmpty()) {
+                    targetMod = trimmed;
+                }
+            }
+        }
+
+        String targetVersion = null;
+        if (obj.has("target_version")) {
+            var verElem = obj.get("target_version");
+            if (!verElem.isJsonNull()) {
+                if (!verElem.isJsonPrimitive() || !verElem.getAsJsonPrimitive().isString()) {
+                    return MetadataParseResult.invalid("Invalid 'target_version' field: expected string");
+                }
+                String trimmed = verElem.getAsString().trim();
+                if (!trimmed.isEmpty()) {
+                    targetVersion = trimmed;
+                }
+            }
+        }
+
+        String referenceJarSha256 = null;
+        if (obj.has("reference_jar_sha256")) {
+            var shaElem = obj.get("reference_jar_sha256");
+            if (!shaElem.isJsonNull()) {
+                if (!shaElem.isJsonPrimitive() || !shaElem.getAsJsonPrimitive().isString()) {
+                    return MetadataParseResult.invalid("Invalid 'reference_jar_sha256' field: expected string");
+                }
+                String trimmed = shaElem.getAsString().trim();
+                if (!trimmed.isEmpty()) {
+                    if (!SHA256_PATTERN.matcher(trimmed).matches()) {
+                        return MetadataParseResult.invalid("Invalid reference_jar_sha256 format: expected 64 hexadecimal characters");
+                    }
+                    referenceJarSha256 = trimmed.toLowerCase(Locale.ROOT);
+                }
+            }
+        }
+
+        return MetadataParseResult.valid(new CompatibilityMetadata(
+                CURRENT_FORMAT, name, targetMod, targetVersion, referenceJarSha256
+        ));
     }
 
     public static Optional<CompatibilityMetadata> fromJson(JsonObject obj) {

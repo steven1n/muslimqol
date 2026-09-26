@@ -200,11 +200,10 @@ In `compatibility.json`, the pack declares:
 ```
 
 > [!NOTE]
-> **Runtime Metadata Boundary**:
-> - `target_version` and `reference_jar_sha256` are **audit and provenance reference metadata**.
-> - Current Java `CompatibilityMetadata` consumes `format`, `name`, and `target_mod`.
-> - **Runtime activation is currently gated by `target_mod` presence only.** MuslimQoL does **not** validate the installed Pam JAR checksum or enforce exact version matching at game startup.
-> - *Follow-up note for pre-0.2 release*: Consider version-aware compatibility-pack activation and unverified-version runtime diagnostics in the core compatibility framework.
+> **Runtime Metadata & Version Safety Boundary**:
+> - `target_version` is **operational at runtime**: MuslimQoL verifies the loaded `pamhc2foodcore` version against `1.0.4`. Matching versions yield `VERIFIED`; differing or unavailable versions yield `UNVERIFIED` (active with diagnostic warning).
+> - `reference_jar_sha256` is **audit and provenance reference metadata**: records the exact reference JAR artifact used during compatibility auditing. MuslimQoL does **not** hash installed mod JARs at runtime.
+> - Runtime activation requires `target_mod` (`pamhc2foodcore`) to be loaded; if absent, the pack is safely `SKIPPED`.
 
 ---
 

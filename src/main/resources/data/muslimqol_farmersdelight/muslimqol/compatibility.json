@@ -1,5 +1,7 @@
 {
   "format": 1,
   "name": "MuslimQoL Farmer's Delight Compatibility",
-  "target_mod": "farmersdelight"
+  "target_mod": "farmersdelight",
+  "target_version": "1.3.4",
+  "reference_jar_sha256": "139ad7696462c89c03eea463f805abffa552526c5dadaadae221dd9624cb197c"
 }

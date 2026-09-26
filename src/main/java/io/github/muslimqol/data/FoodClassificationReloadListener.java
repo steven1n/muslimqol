@@ -7,6 +7,8 @@ import com.google.gson.JsonObject;
 import io.github.muslimqol.api.FoodClassification;
 import io.github.muslimqol.compat.ClassificationRuntimeState;
 import io.github.muslimqol.compat.CompatibilityMetadata;
+import io.github.muslimqol.compat.CompatibilityPackState;
+import io.github.muslimqol.compat.CompatibilityVerificationStatus;
 import io.github.muslimqol.compat.FoodCompatibilityManager;
 import io.github.muslimqol.compat.MetadataParseResult;
 import io.github.muslimqol.food.FoodClassificationRegistry;
@@ -46,6 +48,7 @@ public class FoodClassificationReloadListener extends SimpleJsonResourceReloadLi
 
         Map<String, CompatibilityMetadata> activePacks = new HashMap<>();
         Map<String, CompatibilityMetadata> skippedPacks = new HashMap<>();
+        Map<String, CompatibilityPackState> packStates = new HashMap<>();
 
         if (jsonMap != null && resourceManager != null) {
             Set<String> namespaces = new HashSet<>();
@@ -75,18 +78,34 @@ public class FoodClassificationReloadListener extends SimpleJsonResourceReloadLi
 
                 if (parseResult instanceof MetadataParseResult.Valid valid) {
                     CompatibilityMetadata meta = valid.metadata();
-                    if (meta.targetMod() != null && !FoodCompatibilityManager.isModLoaded(meta.targetMod())) {
+                    CompatibilityPackState packState = FoodCompatibilityManager.evaluatePack(namespace, meta);
+                    packStates.put(namespace, packState);
+
+                    if (packState.isSkipped()) {
                         skippedPacks.put(namespace, meta);
                         LOGGER.info("Skipped compatibility pack '{}' ({}) because target mod '{}' is not loaded",
                                 meta.name(), namespace, meta.targetMod());
+                    } else if (packState.isVerified()) {
+                        activePacks.put(namespace, meta);
+                        if (meta.targetVersion() != null) {
+                            LOGGER.info("Compatibility pack '{}' verified for {} {}.",
+                                    meta.name(), meta.targetMod(), packState.installedVersion());
+                        } else {
+                            LOGGER.info("Compatibility pack '{}' ({}) loaded (legacy unversioned pack).",
+                                    meta.name(), namespace);
+                        }
                     } else {
                         activePacks.put(namespace, meta);
-                        LOGGER.info("Loaded compatibility pack '{}' ({})", meta.name(), namespace);
+                        String installedDesc = packState.installedVersion() != null ? packState.installedVersion() : "unavailable";
+                        LOGGER.warn("Compatibility pack '{}' was audited for {} {}, but installed version is {}. The pack remains active but is UNVERIFIED for this version.",
+                                meta.name(), meta.targetMod(), meta.targetVersion(), installedDesc);
                     }
                 } else if (parseResult instanceof MetadataParseResult.Invalid invalid) {
                     LOGGER.warn("Skipping compatibility classifications for namespace '{}' due to invalid metadata: {}",
                             namespace, invalid.reason());
-                    skippedPacks.put(namespace, new CompatibilityMetadata(-1, "Invalid Metadata (" + invalid.reason() + ")", null));
+                    CompatibilityMetadata invalidMeta = new CompatibilityMetadata(-1, "Invalid Metadata (" + invalid.reason() + ")", null);
+                    skippedPacks.put(namespace, invalidMeta);
+                    packStates.put(namespace, new CompatibilityPackState(namespace, invalidMeta, CompatibilityVerificationStatus.SKIPPED, null));
                 }
                 // MetadataParseResult.Absent loads normally without entry in active or skipped packs
             }
@@ -105,7 +124,8 @@ public class FoodClassificationReloadListener extends SimpleJsonResourceReloadLi
                 datapackEntries,
                 userOverrides,
                 activePacks,
-                skippedPacks
+                skippedPacks,
+                packStates
         );
 
         // Single atomic swap: readers see generation N or generation N+1, never a mixture
