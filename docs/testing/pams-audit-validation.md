@@ -1,10 +1,10 @@
 # Pam's HarvestCraft 2 - Food Core: Audit Engine Generalization Validation Report
 
-## 1. Executive Summary & Generalization Verdict
+## 1. Executive Summary & Generalization Scope
 
 This audit validation evaluates the **MuslimQoL Compatibility Audit Engine v0.1** against an independent, third-party food mod: **Pam's HarvestCraft 2 - Food Core** (Minecraft 1.21.1 / NeoForge 21.1.0+ / Version 1.0.4).
 
-The audit engine was originally built and tuned against *Farmer's Delight*. Testing against Pam's HarvestCraft 2 serves as a stringent **generalization test** of the engine's core capabilities:
+The audit engine was originally developed and tuned against *Farmer's Delight*. Testing against Pam's HarvestCraft 2 serves as a stringent **cross-architecture generalization test** of the engine's core capabilities:
 - Mod JAR asset and bytecode inspection
 - Player-edible item discovery
 - Recipe and item tag parsing
@@ -13,11 +13,15 @@ The audit engine was originally built and tuned against *Farmer's Delight*. Test
 - Conflict and ambiguity detection
 
 ### Generalization Assessment Summary
+- **Demonstrated Cross-Architecture Generalization**:
+  The engine has now demonstrated cross-architecture generalization across two materially different food mods:
+  1. *Farmer's Delight 1.3.4* (Modern NeoForge conventions, `c:foods/*` tag hierarchies, `snake_case` IDs, custom cooking pot recipe serializer)
+  2. *Pam's HarvestCraft 2 Food Core 1.0.4* (Legacy flat Forge tags, concatenated IDs with `item` suffixes, bytecode `FoodProperties` fields, vanilla crafting table recipe patterns)
 - **Tag & Recipe Ingestion**: **Generalized Flawlessly**. Parsed 218 recipes and 197 item tags with **0 parser exceptions** and **0 diagnostics**.
-- **Player-Edible Discovery**: **Required Generic Architectural Refinement**.
-  - *Baseline*: The initial engine relied exclusively on the modern NeoForge `c:foods` and `c:drinks` tag hierarchy, identifying only **12** edible candidates (6.67% recall).
-  - *Root Cause*: Pam's HarvestCraft 2 does not use modern tag hierarchies, defining items flatly under `c:` (e.g. `c:bread`, `c:cookedbeef`) and omitting 130 food items from any tags. Instead, edibility in Pam's is defined at runtime via Java bytecode in `FoodBuilderRegistry.class` using `FoodProperties`.
-  - *Generic Fix*: Implemented a generic JVM constant-pool and field-descriptor scanner (`extract_food_properties_fields`) to detect static `FoodProperties` fields directly from bytecode. This raised edible candidate discovery to **180 items** (**100% recall**, **100% precision**).
+- **Player-Edible Item Discovery**: **Required Generic Architectural Refinement**.
+  - *Baseline*: The initial engine relied exclusively on the modern NeoForge `c:foods` and `c:drinks` tag hierarchy, discovering only **12** edible candidates (6.67% recall).
+  - *Root Cause*: Pam's HarvestCraft 2 does not use modern tag hierarchies, defining tags flatly under `c:` (e.g. `c:bread`, `c:cookedbeef`) and omitting 130 food items from any tags. Instead, edibility in Pam's is defined at runtime via Java bytecode in `FoodBuilderRegistry.class` using `FoodProperties`.
+  - *Generic Fix*: Implemented a generic JVM constant-pool and field-descriptor scanner (`extract_food_properties_fields`) to detect static `FoodProperties` fields directly from bytecode. This raised edible candidate discovery to **180 items** (**Edible-discovery recall: 100.0%**, **Edible-discovery precision: 100.0%**).
 - **Tokenization & Heuristics**: **Required Compound Decomposition**.
   - *Baseline*: Pam's identifiers use lowercase un-delimited concatenations with an `item` suffix (e.g. `porknoodlesoupitem`, `cookedgroundbeefitem`, `hotdogitem`).
   - *Generic Fix*: Added culinary prefix decomposition (`cooked`, `raw`, `ground`) and `item` suffix stripping while strictly preserving negative qualifiers (`NAME_EXCEPTIONS` such as `porkless`, `meatless`).
@@ -59,17 +63,20 @@ An exhaustive manual audit of the JAR contents was performed prior to engine ref
   - **9 Tools**: `bakewareitem`, `cuttingboarditem`, `grinderitem`, `juiceritem`, `mixingbowlitem`, `potitem`, `rolleritem`, `saucepanitem`, `skilletitem`.
   - **13 Cooking Ingredients / Intermediate Crafting Items**: `batteritem`, `butteritem`, `cocoapowderitem`, `cookingoilitem`, `creamitem`, `doughitem`, `flouritem`, `freshmilkitem`, `freshwateritem`, `mayonaiseitem`, `pastaitem`, `saltitem`, `vinegaritem`.
 
-### 3.3 Discovery Quality Comparison
+### 3.3 Edible Item Discovery Quality Comparison
+
+> [!NOTE]
+> The precision and recall metrics below measure **player-edible item discovery** against ground truth (distinguishing consumable food items from tools and crafting ingredients). They do NOT represent heuristic suggestion accuracy, religious classification precision, or final MuslimQoL classification accuracy.
 
 | Metric | Untouched Baseline v0.1 | Post-Refinement Engine | Ground Truth |
 | :--- | :---: | :---: | :---: |
 | Total Discovered Items | 209 (from models) | 202 (registered items) | **202** |
-| Edible Candidates | 12 (from legacy tags) | 180 (from `FoodProperties`) | **180** |
-| Edible True Positives | 12 | 180 | **180** |
-| Edible False Positives | 0 | 0 | **0** |
-| Edible False Negatives | 168 | 0 | **0** |
-| **Precision** | **100.0%** | **100.0%** | **100.0%** |
-| **Recall** | **6.67%** | **100.0%** | **100.0%** |
+| Edible Candidates Discovered | 12 (from legacy tags) | 180 (from `FoodProperties`) | **180** |
+| Edible True Positives (TP) | 12 | 180 | **180** |
+| Edible False Positives (FP) | 0 | 0 | **0** |
+| Edible False Negatives (FN) | 168 | 0 | **0** |
+| **Edible-Discovery Precision** | **100.0%** (12 / 12) | **100.0%** (180 / 180) | **100.0%** |
+| **Edible-Discovery Recall** | **6.67%** (12 / 180) | **100.0%** (180 / 180) | **100.0%** |
 
 ---
 
@@ -91,7 +98,11 @@ In Pam's HarvestCraft 2, the engine identified **13 items** under `HIGH_RISK_RES
 12. `pamhc2foodcore:porknoodlesoupitem` (`pork`)
 13. `pamhc2foodcore:porkpotpieitem` (`pork`)
 
-**Accuracy**: **100% precision**, 0 false positives, 0 false negatives for swine items.
+**Direct Swine-Candidate Precision**: **13 / 13 confirmed**.
+For directly observable registry-name and immediate recipe evidence, the 13 identified high-risk swine candidates were all confirmed by forensic inspection.
+
+> [!WARNING]
+> We do NOT claim global zero swine false negatives across all transitive recipes. Because the v0.1 engine inspects only immediate recipes and does not yet traverse nested tag alternatives or multi-tier crafting graphs, indirect swine usage (such as multi-animal stock ingredients) cannot be ruled out purely through automated heuristics.
 
 ### 4.2 Meat Provenance Detection
 The engine identified **36 items** under `MEAT_PROVENANCE_REQUIRED`:
@@ -124,7 +135,7 @@ When decomposing compound words, negative qualifiers such as `porkless`, `meatle
 - `hotdogitem`: The name "hotdog" is an ambiguous processed meat in culinary culture. The audit engine flags `hotdog` as ambiguous meat (`AMBIGUOUS_MEAT`), and the recipe confirms swine provenance by requiring `pamhc2foodcore:groundporkitem`.
 - `potroastitem`: The name "pot roast" denotes a cooking technique without explicit species naming. The recipe definitively resolves species by requiring `#c:rawbeef`.
 
-### 5.4 Variable Recipe Ambiguity: The `stockitem` Trap
+### 5.4 Variable Recipe Ambiguity: The `stockitem` Gap
 - In Pam's HarvestCraft 2, `pamhc2foodcore:stockitem` is crafted from `#c:stock_ingredients` in a pot.
 - Inspecting `c:stock_ingredients` reveals:
   ```json
@@ -140,7 +151,10 @@ When decomposing compound words, negative qualifiers such as `porkless`, `meatle
     "#c:stock_ingredients/rawtropicalfish"
   ]
   ```
-- **Crucial Finding**: `stockitem` can be crafted from `minecraft:porkchop` or `minecraft:bone` or `minecraft:beef`. Because it permits both swine and permissible meats interchangeably, any stock in circulation without strict NBT provenance tracking is inherently ambiguous/doubtful in MuslimQoL gameplay.
+- `stockitem` can be crafted from `minecraft:porkchop` or `minecraft:bone` or `minecraft:beef`. Because it permits both swine and permissible meats interchangeably, any stock in circulation without strict NBT provenance tracking is inherently ambiguous/doubtful in MuslimQoL gameplay.
+- **KNOWN ENGINE GAP: Nested tag-choice provenance is not yet propagated into recipe evidence.**
+  - *Important Architectural Distinction*: `TagRegistry` successfully resolves the `#c:stock_ingredients` hierarchy down to leaf items, BUT `EvidenceEngine` does not currently transform the resolved alternatives of a recipe input tag into recipe-variable evidence (`VARIABLE_RECIPE_DIVERGENCE`).
+  - As a result, the v0.1 engine categorized `stockitem` as `NO_SIGNAL` rather than `AMBIGUOUS_RECIPE`. This divergence was identified by manual forensic inspection, not by automated engine heuristics.
 
 ---
 
@@ -184,11 +198,12 @@ When decomposing compound words, negative qualifiers such as `porkless`, `meatle
   - Recipe Inputs: `#c:tool_skillet`, `#c:bread`, `#c:butter`, `#c:cheese`, `#c:rawpork`.
   - Verdict: Recipe confirms pork addition to dairy/plant base.
 
-### 6.4 Limitation: Intermediate Custom Mod Items
-- In `pamhc2foodcore:chickendinneritem`, the recipe requires:
-  `[pamhc2foodcore:friedchickenitem, pamhc2foodcore:mashedpotatoesitem, #c:vegetables, #c:tool_cuttingboard]`.
-- Because `friedchickenitem` is a custom mod item rather than a vanilla ID or common tag, single-step recipe inspection does not automatically expand its ingredients into chicken meat.
-- *Engine Implication*: Multi-tier or transitive recipe graph resolution will be valuable for future engine versions when analyzing mods that feature complex multi-step cooking trees.
+### 6.4 Intermediate Custom Mod Items Gap
+- **KNOWN ENGINE GAP: Transitive recipe provenance across intermediate mod items is not yet expanded.**
+  - Example: `pamhc2foodcore:chickendinneritem` requires:
+    `[pamhc2foodcore:friedchickenitem, pamhc2foodcore:mashedpotatoesitem, #c:vegetables, #c:tool_cuttingboard]`.
+  - The current v0.1 engine only inspects the immediate recipe. Because `friedchickenitem` is a custom mod item rather than a vanilla ID or common tag, single-step recipe inspection does not expand `friedchickenitem` into its underlying chicken meat ingredients.
+  - As a result, `chickendinneritem` fell down to `NO_SIGNAL`. Resolving intermediate crafted mod items recursively across the recipe graph is planned for Audit Engine v0.2.
 
 ---
 
@@ -209,7 +224,7 @@ When decomposing compound words, negative qualifiers such as `porkless`, `meatle
 1. **Generic JVM Bytecode `FoodProperties` Scanner**:
    - Implemented `extract_food_properties_fields` in `jar_reader.py`.
    - Directly parses class file constant pools and static field descriptors looking for `Lnet/minecraft/world/food/FoodProperties;`.
-   - This works universally across NeoForge and Forge mods from 1.20 through 1.21.1 without executing mod code.
+   - Emits structured `FOOD_PROPERTIES_BYTECODE_PARSE_ERROR` diagnostics if class bytecode is truncated or malformed, avoiding silent failure while allowing the audit to proceed gracefully.
 2. **Model-Overlap Registry Candidate Ranking**:
    - Instead of matching only classes with `Item` in their name, candidate registry classes are ranked by their intersection with discovered item models.
    - The class with maximum overlap is selected as the primary item registration table.
@@ -217,6 +232,11 @@ When decomposing compound words, negative qualifiers such as `porkless`, `meatle
    - Recognizes standard culinary prefixes (`cooked`, `raw`, `ground`) and species roots (`pork`, `beef`, `chicken`, `mutton`, `rabbit`, `fish`, `bacon`).
    - Strips redundant trailing `item` suffixes.
    - Preserves negative qualifiers (`NAME_EXCEPTIONS`) such as `porkless` and `meatless`.
+
+### 7.3 FoodProperties Discovery Limitations
+- The bytecode scanner specifically inspects static fields with descriptor `Lnet/minecraft/world/food/FoodProperties;`.
+- **Limitation**: It will NOT discover foods in mods that define properties entirely inline without static fields (e.g., `new Item(new Item.Properties().food(new FoodProperties.Builder()...))` where the `FoodProperties` instance is an anonymous argument).
+- **Limitation**: It does not yet inspect Minecraft 1.20.5+ Data Components (`minecraft:food` defined in data pack JSON or component registries) as an independent food discovery source.
 
 ---
 
@@ -298,22 +318,33 @@ Items with detected conflicts: 0
 
 1. **Audit Engine Python Test Suite**:
    - `python3 -m unittest discover -s tools/compatibility/tests -p "test_*.py"`
-   - **42 tests executed, 0 failures, 0 errors (PASS)**.
-   - Includes new synthetic bytecode tests (`test_jar_reader.py`) and compound culinary token tests (`test_name_heuristics.py`).
+   - **44 tests executed, 0 failures, 0 errors (PASS)**.
+   - Includes synthetic bytecode error handling and structured diagnostic tests in [`test_jar_reader.py`](file:///Users/akiyama/IdeaProjects/muslimqol/tools/compatibility/tests/test_jar_reader.py), and compound culinary token tests in [`test_name_heuristics.py`](file:///Users/akiyama/IdeaProjects/muslimqol/tools/compatibility/tests/test_name_heuristics.py).
 2. **MuslimQoL Java Test Suite**:
    - `./gradlew -Pneo_version=21.1.176 test`
    - **68 tests executed, 0 failures, 0 errors (PASS)**.
 
 ---
 
-## 11. Final Recommendations for MuslimQoL Compatibility Workflows
+## 11. Scoped Generalization Conclusion & Future Roadmap
 
-1. **Audit Engine v0.1 Status**:
-   - The engine is now field-tested against two architecturally distinct food mods:
-     - *Farmer's Delight* (Modern tag hierarchies, snake_case IDs, data-driven tags, custom cooking pot).
-     - *Pam's HarvestCraft 2* (Legacy flat tags, concatenated IDs, bytecode `FoodProperties`, vanilla crafting table recipes).
-2. **Pack Author Workflow**:
-   - The generated audit artifacts (`review.md`, `evidence.json`, `summary.json`) provide human reviewers with 100% of edible foods, explicit swine warnings, and recipe ingredient breakdowns.
-3. **Future Engine Improvements**:
-   - Add optional recursive recipe expansion for intermediate crafted food items (e.g. `friedchickenitem` in `chickendinneritem`).
-   - Add Minecraft 1.20.5+ Data Components inspection for mods that register food properties exclusively through data-driven components.
+The MuslimQoL Compatibility Audit Engine has now demonstrated **cross-architecture generalization** across two materially different food mods:
+1. **Farmer's Delight 1.3.4**
+2. **Pam's HarvestCraft 2 Food Core 1.0.4**
+
+### Verified Capabilities Across Architectures
+- Modern `c:foods` and `c:drinks` tag hierarchies
+- Legacy and flat common tag roots under `c:`
+- Standard `snake_case` registry identifiers
+- Concatenated registry identifiers with redundant suffixes
+- Static-field `FoodProperties` bytecode discovery
+- Model-overlap registry class discovery
+- Custom recipe serializers already supported by the generic recipe parser
+
+### Known Unverified & Gap Areas for Audit Engine v0.2
+- **Transitive recipe graphs**: Resolving intermediate crafted mod items (e.g. `friedchickenitem` in `chickendinneritem`)
+- **Nested tag-choice provenance**: Propagating alternatives within nested recipe tags (e.g. `#c:stock_ingredients` containing pork) into `VARIABLE_RECIPE_DIVERGENCE`
+- **Data-component-only food definitions**: Discovering foods registered exclusively through 1.20.5+ data components
+- **Inline/non-field `FoodProperties` definitions**: Detecting food properties created anonymously inside constructor arguments
+- **Mods without item models**: Discovering items in mods that do not package item model JSONs
+- **Alternative registration architectures**: Supporting mods that do not register items via standard Forge/NeoForge deferred registers
