@@ -1,0 +1,44 @@
+{
+  "values": [
+    {
+      "item": "pamhc2foodcore:basicfishsandwichitem",
+      "status": "HALAL",
+      "reason": "fish"
+    },
+    {
+      "item": "pamhc2foodcore:cookedgroundfishitem",
+      "status": "HALAL",
+      "reason": "fish"
+    },
+    {
+      "item": "pamhc2foodcore:fishandchipsitem",
+      "status": "HALAL",
+      "reason": "fish"
+    },
+    {
+      "item": "pamhc2foodcore:fishjerkyitem",
+      "status": "HALAL",
+      "reason": "fish"
+    },
+    {
+      "item": "pamhc2foodcore:fishpotpieitem",
+      "status": "HALAL",
+      "reason": "fish"
+    },
+    {
+      "item": "pamhc2foodcore:fishsticksitem",
+      "status": "HALAL",
+      "reason": "fish"
+    },
+    {
+      "item": "pamhc2foodcore:grilledfishskeweritem",
+      "status": "HALAL",
+      "reason": "fish"
+    },
+    {
+      "item": "pamhc2foodcore:groundfishitem",
+      "status": "HALAL",
+      "reason": "fish"
+    }
+  ]
+}

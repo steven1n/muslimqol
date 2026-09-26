@@ -1,0 +1,69 @@
+{
+  "values": [
+    {
+      "item": "pamhc2foodcore:baconandeggsitem",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "pamhc2foodcore:baconcheeseburgeritem",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "pamhc2foodcore:basicporksandwichitem",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "pamhc2foodcore:chocolatebaconitem",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "pamhc2foodcore:cookedgroundporkitem",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "pamhc2foodcore:epicbaconitem",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "pamhc2foodcore:grilledcheeseandhamitem",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "pamhc2foodcore:grilledporkskeweritem",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "pamhc2foodcore:groundporkitem",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "pamhc2foodcore:hotdogitem",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "pamhc2foodcore:porkjerkyitem",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "pamhc2foodcore:porknoodlesoupitem",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    },
+    {
+      "item": "pamhc2foodcore:porkpotpieitem",
+      "status": "RESTRICTED",
+      "reason": "swine"
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "values": [
+    {
+      "item": "pamhc2foodcore:beefnoodlesoupitem",
+      "status": "DOUBTFUL",
+      "reason": "variable_provenance"
+    },
+    {
+      "item": "pamhc2foodcore:carrotsoupitem",
+      "status": "DOUBTFUL",
+      "reason": "variable_provenance"
+    },
+    {
+      "item": "pamhc2foodcore:chickennoodlesoupitem",
+      "status": "DOUBTFUL",
+      "reason": "variable_provenance"
+    },
+    {
+      "item": "pamhc2foodcore:fishnoodlesoupitem",
+      "status": "DOUBTFUL",
+      "reason": "variable_provenance"
+    },
+    {
+      "item": "pamhc2foodcore:meatloafitem",
+      "status": "DOUBTFUL",
+      "reason": "variable_provenance"
+    },
+    {
+      "item": "pamhc2foodcore:muttonnoodlesoupitem",
+      "status": "DOUBTFUL",
+      "reason": "variable_provenance"
+    },
+    {
+      "item": "pamhc2foodcore:noodlesoupitem",
+      "status": "DOUBTFUL",
+      "reason": "variable_provenance"
+    },
+    {
+      "item": "pamhc2foodcore:potatosoupitem",
+      "status": "DOUBTFUL",
+      "reason": "variable_provenance"
+    },
+    {
+      "item": "pamhc2foodcore:pumpkinsoupitem",
+      "status": "DOUBTFUL",
+      "reason": "variable_provenance"
+    },
+    {
+      "item": "pamhc2foodcore:rabbitnoodlesoupitem",
+      "status": "DOUBTFUL",
+      "reason": "variable_provenance"
+    },
+    {
+      "item": "pamhc2foodcore:stewitem",
+      "status": "DOUBTFUL",
+      "reason": "variable_provenance"
+    },
+    {
+      "item": "pamhc2foodcore:stockitem",
+      "status": "DOUBTFUL",
+      "reason": "variable_provenance"
+    },
+    {
+      "item": "pamhc2foodcore:vegetablenoodlesoupitem",
+      "status": "DOUBTFUL",
+      "reason": "variable_provenance"
+    }
+  ]
+}

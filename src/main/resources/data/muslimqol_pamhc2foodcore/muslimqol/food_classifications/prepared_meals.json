@@ -1,0 +1,329 @@
+{
+  "values": [
+    {
+      "item": "pamhc2foodcore:appledonutitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:applejellytoastitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:applemuffinitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:appleyogurtitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:basicveggieburgeritem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:boiledeggitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:butteredbakedpotatoitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:caramelappleitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:carameldonutitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:caramelicecreamitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:caramelitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:caramelmuffinitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:caramelpieitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:caramelyogurtitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:carrotcakeitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:carrotdonutitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:carrotmuffinitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:cheesecakeitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:cheeseitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:chocolatecakeitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:chocolatecaramelfudgeitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:chocolatedonutitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:chocolateicecreamitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:chocolatemilkitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:chocolatemuffinitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:chocolaterollitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:chocolateyogurtitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:chorusdonutitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:chorusjellytoastitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:chorusmuffinitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:chorusyogurtitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:cookiesandmilkitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:crackersandcheeseitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:friedeggitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:fudgesicleitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:glazedcarrotsitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:glowberrydonutitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:glowberryjellytoastitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:glowberrymuffinitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:glowberryyogurtitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:grilledcheeseitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:honeyglazeddonutitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:honeymuffinitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:hotchocolateitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:icecreamitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:macncheeseitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:mashedpotatoesitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:melondonutitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:melonjellytoastitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:melonmuffinitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:melonyogurtitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:plaindonutitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:powdereddonutitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:pumpkincheesecakeitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:pumpkindonutitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:pumpkinmuffinitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:pumpkinyogurtitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:scrambledeggitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:sprinklesdonutitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:sweetberrydonutitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:sweetberryjellytoastitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:sweetberrymuffinitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:sweetberryyogurtitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:toastitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
+      "item": "pamhc2foodcore:yogurtitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    }
+  ]
+}
