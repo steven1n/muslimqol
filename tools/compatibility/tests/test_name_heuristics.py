@@ -177,5 +177,31 @@ class TestNameHeuristics(unittest.TestCase):
         self.assertEqual(result.suggestion.category, SuggestionCategory.FISH_REVIEW_BASELINE)
 
 
+    def test_compound_culinary_tokens(self):
+        # Concatenated compound token with item suffix
+        tokens, ev = analyze_registry_id("pamhc2foodcore:cookedgroundbeefitem")
+        self.assertIn("beef", tokens)
+        result = self.engine.analyze_item("pamhc2foodcore:cookedgroundbeefitem")
+        self.assertEqual(result.suggestion.category, SuggestionCategory.MEAT_PROVENANCE_REQUIRED)
+
+        # Pork compound without delimiter
+        tokens, ev = analyze_registry_id("pamhc2foodcore:porknoodlesoupitem")
+        self.assertIn("pork", tokens)
+        result = self.engine.analyze_item("pamhc2foodcore:porknoodlesoupitem")
+        self.assertEqual(result.suggestion.category, SuggestionCategory.HIGH_RISK_RESTRICTED)
+
+        # Bacon compound
+        tokens, ev = analyze_registry_id("pamhc2foodcore:baconcheeseburgeritem")
+        self.assertIn("bacon", tokens)
+        result = self.engine.analyze_item("pamhc2foodcore:baconcheeseburgeritem")
+        self.assertEqual(result.suggestion.category, SuggestionCategory.HIGH_RISK_RESTRICTED)
+
+        # Fish compound
+        tokens, ev = analyze_registry_id("pamhc2foodcore:fishsticksitem")
+        self.assertIn("fish", tokens)
+        result = self.engine.analyze_item("pamhc2foodcore:fishsticksitem")
+        self.assertEqual(result.suggestion.category, SuggestionCategory.FISH_REVIEW_BASELINE)
+
+
 if __name__ == "__main__":
     unittest.main()
