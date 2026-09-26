@@ -22,6 +22,10 @@ class EvidenceKind(str, Enum):
     REGISTRY_METADATA = "REGISTRY_METADATA"
     CURATED_PACK = "CURATED_PACK"
     UNTRUSTED_SELF_DESCRIPTION = "UNTRUSTED_SELF_DESCRIPTION"
+    TRANSITIVE_RECIPE_ITEM = "TRANSITIVE_RECIPE_ITEM"
+    TRANSITIVE_RECIPE_TAG = "TRANSITIVE_RECIPE_TAG"
+    VARIABLE_PROVENANCE = "VARIABLE_PROVENANCE"
+    PROVENANCE_PATH = "PROVENANCE_PATH"
 
 
 @dataclass(frozen=True)
@@ -133,6 +137,7 @@ class ItemAuditResult:
     recipes: List[str] = field(default_factory=list)
     tags: List[str] = field(default_factory=list)
     is_edible: bool = True
+    provenance: Optional[Any] = None
 
     def to_evidence_dict(self) -> Dict[str, Any]:
         data: Dict[str, Any] = {
@@ -158,6 +163,8 @@ class ItemAuditResult:
             data["existing_curated_status"] = self.curated_status
             data["existing_curated_reason"] = self.curated_reason
             data["existing_curated_source"] = self.curated_source
+        if self.provenance and hasattr(self.provenance, "to_dict"):
+            data["provenance"] = self.provenance.to_dict()
         return data
 
 

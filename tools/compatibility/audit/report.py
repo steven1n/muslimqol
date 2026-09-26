@@ -26,6 +26,7 @@ def generate_summary_dict(
     results: List[ItemAuditResult],
     pack_report: Optional[PackValidationReport] = None,
     diagnostics: Optional[List[ParseDiagnostic]] = None,
+    provenance_summary: Optional[Dict[str, int]] = None,
 ) -> Dict[str, Any]:
     """Generates the structured dictionary for summary.json."""
     suggestion_counts: Dict[str, int] = {
@@ -42,6 +43,9 @@ def generate_summary_dict(
         "edible_candidates": edible_candidates,
         "suggestions": suggestion_counts,
     }
+
+    if provenance_summary is not None:
+        summary["provenance"] = provenance_summary
 
     if diagnostics:
         summary["diagnostics"] = [d.to_dict() for d in diagnostics]
@@ -79,6 +83,12 @@ def write_evidence_json(path: str, results: List[ItemAuditResult]) -> None:
         json.dump(items_data, f, indent=2)
 
 
+def write_provenance_json(path: str, provenance_dict: Dict[str, Any]) -> None:
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(provenance_dict, f, indent=2)
+
+
 def write_review_md(
     path: str,
     mod_id: str,
@@ -87,6 +97,7 @@ def write_review_md(
     total_items_count: int,
     pack_report: Optional[PackValidationReport] = None,
     diagnostics: Optional[List[ParseDiagnostic]] = None,
+    provenance_map: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Generates prioritized Markdown review report."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
@@ -279,6 +290,35 @@ def write_review_md(
         "Items lacking recipes, identifiable tags, and recognizable food keywords."
     )
 
+    # Recipe Provenance Trees section
+    items_with_prov = []
+    for r in sorted_results:
+        prov = r.provenance or (provenance_map.get(r.item_id) if provenance_map else None)
+        if prov and (getattr(prov, "has_transitive_evidence", False) or getattr(prov, "has_variable_provenance", False) or (getattr(prov, "paths", None) and len(prov.paths) > 0)):
+            items_with_prov.append((r, prov))
+
+    if items_with_prov:
+        lines.extend([
+            "---",
+            f"## Recipe Provenance Trees ({len(items_with_prov)} items)",
+            "",
+            "The following items exhibit transitive ingredient provenance, intermediate recipe chains, or alternative choices:",
+            "",
+        ])
+        for r, prov in items_with_prov:
+            lines.append(
+                f"### `{r.item_id}` (`{r.suggestion.category.value}`, Priority: {r.suggestion.review_priority})"
+            )
+            if getattr(prov, "incomplete", False):
+                reasons = ", ".join(getattr(prov, "incomplete_reasons", []))
+                lines.append(f"> ⚠ Provenance incomplete: {reasons}")
+            lines.extend([
+                "```text",
+                prov.tree_text if hasattr(prov, "tree_text") else str(prov),
+                "```",
+                "",
+            ])
+
     # Detailed item appendix
     lines.extend([
         "---",
@@ -300,6 +340,17 @@ def write_review_md(
             lines.append("- **Recipes**: *No recipe found in JAR*")
         if r.tags:
             lines.append(f"- **Tags**: {', '.join(f'`#{t}`' for t in sorted(r.tags))}")
+        prov = r.provenance or (provenance_map.get(r.item_id) if provenance_map else None)
+        if prov and getattr(prov, "incomplete", False):
+            reasons = ", ".join(getattr(prov, "incomplete_reasons", []))
+            lines.append(f"> ⚠ Provenance incomplete: {reasons}")
+        if prov and hasattr(prov, "tree_text") and prov.tree_text and "No external dietary provenance" not in prov.tree_text:
+            lines.extend([
+                "- **Provenance Tree**:",
+                "```text",
+                prov.tree_text,
+                "```",
+            ])
         if r.suggestion.conflicts:
             lines.append("- **Conflicts**:")
             for c in r.suggestion.conflicts:
