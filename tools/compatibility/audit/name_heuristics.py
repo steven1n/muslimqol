@@ -47,6 +47,8 @@ MEAT_PROVENANCE: Set[str] = {
     "turkey",
     "quail",
     "goat",
+    "bone",
+    "bones",
 }
 
 AMBIGUOUS_MEAT: Set[str] = {
@@ -83,6 +85,7 @@ PLANT_HINTS: Set[str] = {
     "potato",
     "beetroot",
     "mushroom",
+    "mushrooms",
     "pie",
     "bread",
     "cookie",
