@@ -52,6 +52,8 @@ class SuggestionCategory(str, Enum):
     HIGH_RISK_RESTRICTED = "HIGH_RISK_RESTRICTED"
     MEAT_PROVENANCE_REQUIRED = "MEAT_PROVENANCE_REQUIRED"
     LIKELY_PLANT_BASED = "LIKELY_PLANT_BASED"
+    LIKELY_LOW_RISK_RECIPE = "LIKELY_LOW_RISK_RECIPE"
+    FISH_REVIEW_BASELINE = "FISH_REVIEW_BASELINE"
     SEAFOOD_REVIEW = "SEAFOOD_REVIEW"
     AMBIGUOUS_RECIPE = "AMBIGUOUS_RECIPE"
     GENERAL_REVIEW = "GENERAL_REVIEW"
@@ -63,6 +65,23 @@ class Confidence(str, Enum):
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
     LOW = "LOW"
+
+
+@dataclass(frozen=True)
+class ParseDiagnostic:
+    """Diagnostic emitted when reading or parsing JAR assets or packs."""
+    source_path: str
+    error_type: str  # JSON_DECODE_ERROR, MALFORMED_TAG, MALFORMED_RECIPE, PACK_PARSE_ERROR, UNKNOWN_ITEM_ID
+    message: str
+    severity: str = "WARNING"  # ERROR, WARNING
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "source_path": self.source_path,
+            "error_type": self.error_type,
+            "message": self.message,
+            "severity": self.severity,
+        }
 
 
 @dataclass(frozen=True)
@@ -147,22 +166,28 @@ class PackValidationReport:
     """Report comparing discovered edible items against a compatibility pack."""
     pack_name: str
     classified_count: int
+    clean: bool = True
     missing_items: List[str] = field(default_factory=list)
     extra_items: List[str] = field(default_factory=list)
     duplicate_items: List[str] = field(default_factory=list)
     unknown_ids: List[str] = field(default_factory=list)
     status_distribution: Dict[str, int] = field(default_factory=dict)
     reason_distribution: Dict[str, int] = field(default_factory=dict)
+    diagnostics: List[ParseDiagnostic] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
+            "clean": self.clean,
             "classified": self.classified_count,
             "missing": len(self.missing_items),
             "extra": len(self.extra_items),
             "duplicates": len(self.duplicate_items),
+            "unknown": len(self.unknown_ids),
             "missing_items": sorted(self.missing_items),
             "extra_items": sorted(self.extra_items),
             "duplicate_items": sorted(self.duplicate_items),
+            "unknown_ids": sorted(self.unknown_ids),
             "status_distribution": self.status_distribution,
             "reason_distribution": self.reason_distribution,
+            "diagnostics": [d.to_dict() for d in self.diagnostics],
         }

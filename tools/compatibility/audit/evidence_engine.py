@@ -3,6 +3,9 @@ Compatibility Audit Evidence Engine.
 
 Synthesizes name heuristics, recipe facts, and tag facts to produce
 prioritized review suggestions, confidence levels, and conflict diagnostics.
+
+NOTE: Review priority represents audit urgency for human reviewers,
+NOT theological severity or religious ruling certainty.
 """
 
 from typing import Dict, List, Optional, Set, Tuple
@@ -19,6 +22,7 @@ from tools.compatibility.audit.models import (
 from tools.compatibility.audit.name_heuristics import (
     ALCOHOL_REVIEW,
     AMBIGUOUS_MEAT,
+    DAIRY_EGG_HINTS,
     FISH_HINTS,
     HIGH_RISK_SWINE,
     MEAT_PROVENANCE,
@@ -29,50 +33,29 @@ from tools.compatibility.audit.name_heuristics import (
     SWINE_ASSOCIATED,
     UNTRUSTED_SELF_DESCRIPTION,
     analyze_registry_id,
+    tokenize_identifier,
 )
 from tools.compatibility.audit.recipe_parser import ParsedRecipe
 from tools.compatibility.audit.tag_parser import TagRegistry
 
 
-SWINE_ITEM_SIGNALS = {
+EXACT_SWINE_ITEMS: Set[str] = {
     "minecraft:porkchop",
     "minecraft:cooked_porkchop",
-    "farmersdelight:bacon",
-    "farmersdelight:cooked_bacon",
-    "farmersdelight:ham",
-    "farmersdelight:smoked_ham",
-    "farmersdelight:minced_beef",  # not swine, listed for clarity
 }
 
-SWINE_TAG_SIGNALS = {
-    "c:foods/raw_pork",
-    "c:foods/cooked_pork",
-    "c:foods/raw_bacon",
-    "c:foods/cooked_bacon",
-    "c:foods/pork",
-    "c:foods/bacon",
-}
-
-MEAT_TAG_SIGNALS = {
-    "c:foods/raw_meat",
-    "c:foods/cooked_meat",
-    "c:foods/raw_beef",
-    "c:foods/cooked_beef",
-    "c:foods/raw_chicken",
-    "c:foods/cooked_chicken",
-    "c:foods/raw_mutton",
-    "c:foods/cooked_mutton",
-    "c:foods/meat",
-}
-
-SEAFOOD_ITEM_SIGNALS = {
+EXACT_SEAFOOD_REVIEW_ITEMS: Set[str] = {
     "minecraft:ink_sac",
     "minecraft:glow_ink_sac",
     "minecraft:nautilus_shell",
 }
 
+EXACT_DAIRY_EGG_ITEMS: Set[str] = {
+    "minecraft:egg",
+    "minecraft:milk_bucket",
+}
 
-ANIMAL_FEED_TAGS = {
+ANIMAL_FEED_TAGS: Set[str] = {
     "minecraft:pig_food",
     "minecraft:rabbit_food",
     "minecraft:chicken_food",
@@ -88,42 +71,82 @@ ANIMAL_FEED_TAGS = {
     "minecraft:horse_food",
 }
 
+FEED_ANIMAL_TOKENS: Set[str] = {
+    "pig", "rabbit", "chicken", "parrot", "cat", "ocelot", "wolf", "strider",
+    "fox", "cow", "sheep", "horse", "dog"
+}
+
 
 def is_swine_item_or_tag(signal: str) -> bool:
+    """Token-safe check for swine signals. Avoids substring false positives like chamomile or hamburger."""
     clean = signal[1:] if signal.startswith("#") else signal
-    lower = clean.lower()
-    if lower in ANIMAL_FEED_TAGS or lower.endswith("_food"):
+    if clean in EXACT_SWINE_ITEMS:
+        return True
+    if clean in ANIMAL_FEED_TAGS:
         return False
-    return any(p in lower for p in ("pork", "bacon", "ham", "lard", "swine"))
+    tokens = set(tokenize_identifier(clean))
+    if "food" in tokens and (tokens & FEED_ANIMAL_TOKENS):
+        return False
+    # Check if qualified by non-swine species modifier (e.g. turkey_bacon)
+    if (tokens & MODIFIER_SPECIES) and not (tokens & HIGH_RISK_SWINE):
+        return False
+    # Check if qualified by plant/mock exceptions (e.g. vegan_ham, mock_pork)
+    if tokens & NAME_EXCEPTIONS and not (tokens & HIGH_RISK_SWINE):
+        return False
+    return bool(tokens & HIGH_RISK_SWINE or tokens & SWINE_ASSOCIATED)
 
 
 def is_meat_item_or_tag(signal: str) -> bool:
+    """Token-safe check for meat signals."""
     clean = signal[1:] if signal.startswith("#") else signal
-    lower = clean.lower()
-    if lower in ANIMAL_FEED_TAGS or lower.endswith("_food") or lower == "origins:meat":
+    if clean in ANIMAL_FEED_TAGS or clean == "origins:meat":
         return False
-    # Fish is not terrestrial livestock meat
     if is_fish_item_or_tag(signal):
         return False
-    return any(m in lower for m in ("beef", "chicken", "mutton", "lamb", "rabbit", "meat", "poultry"))
+    tokens = set(tokenize_identifier(clean))
+    if "food" in tokens and (tokens & FEED_ANIMAL_TOKENS):
+        return False
+    if (tokens & NAME_EXCEPTIONS) and not (tokens & MODIFIER_SPECIES):
+        return False
+    return bool(tokens & MEAT_PROVENANCE or tokens & AMBIGUOUS_MEAT)
 
 
 def is_fish_item_or_tag(signal: str) -> bool:
+    """Token-safe check for scaled fish signals."""
     clean = signal[1:] if signal.startswith("#") else signal
-    lower = clean.lower()
-    return any(f in lower for f in ("fish", "cod", "salmon", "tuna"))
+    if clean in ANIMAL_FEED_TAGS:
+        return False
+    tokens = set(tokenize_identifier(clean))
+    return bool(tokens & FISH_HINTS)
 
 
 def is_seafood_review_item_or_tag(signal: str) -> bool:
+    """Token-safe check for non-fish seafood signals (squid, octopus, shellfish)."""
     clean = signal[1:] if signal.startswith("#") else signal
-    lower = clean.lower()
-    return any(sf in lower for sf in ("squid", "octopus", "crab", "shrimp", "prawn", "lobster", "clam", "oyster", "ink_sac", "calamari"))
+    if clean in EXACT_SEAFOOD_REVIEW_ITEMS:
+        return True
+    tokens = set(tokenize_identifier(clean))
+    return bool(tokens & SEAFOOD_REVIEW or "ink_sac" in tokens)
+
+
+def is_dairy_egg_item_or_tag(signal: str) -> bool:
+    """Token-safe check for dairy and egg signals."""
+    clean = signal[1:] if signal.startswith("#") else signal
+    if clean in EXACT_DAIRY_EGG_ITEMS:
+        return True
+    tokens = set(tokenize_identifier(clean))
+    return bool(tokens & DAIRY_EGG_HINTS)
 
 
 def is_plant_item_or_tag(signal: str) -> bool:
+    """Token-safe check for strictly plant/fungal/crop signals."""
     clean = signal[1:] if signal.startswith("#") else signal
-    lower = clean.lower()
-    return any(pl in lower for pl in ("crop", "vegetable", "fruit", "grain", "wheat", "rice", "potato", "carrot", "cabbage", "tomato", "onion", "mushroom", "berry", "melon", "dough", "pasta", "bread", "salad", "milk", "egg", "sugar", "cocoa"))
+    if (is_swine_item_or_tag(clean) or is_meat_item_or_tag(clean) or
+            is_fish_item_or_tag(clean) or is_seafood_review_item_or_tag(clean) or
+            is_dairy_egg_item_or_tag(clean)):
+        return False
+    tokens = set(tokenize_identifier(clean))
+    return bool(tokens & PLANT_HINTS)
 
 
 class EvidenceEngine:
@@ -177,21 +200,22 @@ class EvidenceEngine:
         has_recipe_meat = False
         has_recipe_fish = False
         has_recipe_seafood_review = False
+        has_recipe_dairy_egg = False
         has_recipe_variable = False
-        recipe_all_plant_like = True if recipes else False
+        recipe_pure_plant = True if recipes else False
 
         has_tag_swine = any(self.tag_registry.is_swine_signal(t) for t in item_tags)
         has_tag_meat = any(self.tag_registry.is_meat_signal(t) for t in item_tags)
         has_tag_fish = any(self.tag_registry.is_fish_signal(t) for t in item_tags)
         has_tag_seafood_review = any(self.tag_registry.is_seafood_review_signal(t) for t in item_tags)
+        has_tag_dairy_egg = any(self.tag_registry.is_dairy_egg_signal(t) for t in item_tags)
 
         # Analyze recipe ingredients
         for ev in recipe_evidence:
             sig = ev.signal
             if ev.kind == EvidenceKind.RECIPE_VARIABLE:
                 has_recipe_variable = True
-                recipe_all_plant_like = False
-                # Check if variable ingredient mixes swine/meat with plants
+                recipe_pure_plant = False
                 low = sig.lower()
                 if any(x in low for x in ("pork", "meat", "chicken", "beef")) and any(y in low for y in ("mushroom", "vegetable", "fish")):
                     conflicts.append(
@@ -205,26 +229,38 @@ class EvidenceEngine:
                     )
             elif "Variable recipe" in ev.detail:
                 # Individual alternative within a variable choice
-                if is_swine_item_or_tag(sig) or is_meat_item_or_tag(sig) or is_seafood_review_item_or_tag(sig):
-                    recipe_all_plant_like = False
+                if is_swine_item_or_tag(sig) or is_meat_item_or_tag(sig) or is_seafood_review_item_or_tag(sig) or is_dairy_egg_item_or_tag(sig):
+                    recipe_pure_plant = False
             else:
                 # Mandatory direct ingredient
                 if is_swine_item_or_tag(sig):
                     has_recipe_swine = True
-                    recipe_all_plant_like = False
+                    recipe_pure_plant = False
                 elif is_meat_item_or_tag(sig):
                     has_recipe_meat = True
-                    recipe_all_plant_like = False
+                    recipe_pure_plant = False
                 elif is_seafood_review_item_or_tag(sig):
                     has_recipe_seafood_review = True
-                    recipe_all_plant_like = False
+                    recipe_pure_plant = False
                 elif is_fish_item_or_tag(sig):
                     has_recipe_fish = True
-                    recipe_all_plant_like = False
+                    recipe_pure_plant = False
+                elif is_dairy_egg_item_or_tag(sig):
+                    has_recipe_dairy_egg = True
+                    recipe_pure_plant = False
+                elif is_plant_item_or_tag(sig):
+                    pass
+                else:
+                    # Non-plant or unrecognized item (e.g. bowls, bottles, water)
+                    clean_id = sig[1:] if sig.startswith("#") else sig
+                    id_tokens = set(tokenize_identifier(clean_id))
+                    if not (id_tokens & PLANT_HINTS or id_tokens & {"bowl", "bottle", "bucket", "glass", "water", "salt"}):
+                        recipe_pure_plant = False
 
         # Name flags
         name_swine = any(e.kind == EvidenceKind.NAME_KEYWORD and (e.signal in HIGH_RISK_SWINE or e.signal in SWINE_ASSOCIATED) for e in name_evidence)
         name_meat = any(e.kind == EvidenceKind.NAME_KEYWORD and (e.signal in MEAT_PROVENANCE or e.signal in AMBIGUOUS_MEAT) for e in name_evidence)
+        name_dairy_egg = any(e.kind == EvidenceKind.NAME_KEYWORD and e.signal in DAIRY_EGG_HINTS for e in name_evidence)
         name_plant = any(e.kind == EvidenceKind.NAME_KEYWORD and e.signal in PLANT_HINTS for e in name_evidence)
         name_seafood_review = any(e.kind == EvidenceKind.NAME_KEYWORD and e.signal in SEAFOOD_REVIEW for e in name_evidence)
         name_fish = any(e.kind == EvidenceKind.NAME_KEYWORD and e.signal in FISH_HINTS for e in name_evidence)
@@ -301,7 +337,7 @@ class EvidenceEngine:
                 )
 
         # 4. Swine name but recipe contains only plant/fungal ingredients
-        if name_swine and recipes and recipe_all_plant_like:
+        if name_swine and recipes and recipe_pure_plant:
             swine_name_ev = next(e for e in name_evidence if e.signal in HIGH_RISK_SWINE or e.signal in SWINE_ASSOCIATED)
             first_recipe_ev = recipe_evidence[0] if recipe_evidence else swine_name_ev
             conflicts.append(
@@ -314,8 +350,8 @@ class EvidenceEngine:
                 )
             )
 
-        # Categorization and Priority
-        # Hierarchy: Recipe > Tag > Name
+        # Categorization and Review Priority
+        # Review priority measures audit urgency, NOT theological severity.
         category: SuggestionCategory
         confidence: Confidence
         priority: int
@@ -325,16 +361,15 @@ class EvidenceEngine:
             category = SuggestionCategory.HIGH_RISK_RESTRICTED
             confidence = Confidence.HIGH
             priority = 100
-        elif name_swine and not has_name_exception and not recipes:
-            category = SuggestionCategory.HIGH_RISK_RESTRICTED
-            confidence = Confidence.MEDIUM
-            priority = 85
-        # 2. Variable / Ambiguous recipe
         elif has_recipe_variable:
             category = SuggestionCategory.AMBIGUOUS_RECIPE
             confidence = Confidence.HIGH
             priority = 80
-        # 3. Non-swine Meat Provenance
+        elif name_swine and not has_name_exception and not recipes:
+            category = SuggestionCategory.HIGH_RISK_RESTRICTED
+            confidence = Confidence.MEDIUM
+            priority = 85
+        # 2. Non-swine Meat Provenance
         elif has_recipe_meat or has_tag_meat:
             category = SuggestionCategory.MEAT_PROVENANCE_REQUIRED
             confidence = Confidence.HIGH
@@ -343,7 +378,7 @@ class EvidenceEngine:
             category = SuggestionCategory.MEAT_PROVENANCE_REQUIRED
             confidence = Confidence.MEDIUM
             priority = 70
-        # 4. Seafood Review
+        # 3. Seafood Review (cephalopods, shellfish)
         elif has_recipe_seafood_review or has_tag_seafood_review:
             category = SuggestionCategory.SEAFOOD_REVIEW
             confidence = Confidence.HIGH
@@ -352,17 +387,33 @@ class EvidenceEngine:
             category = SuggestionCategory.SEAFOOD_REVIEW
             confidence = Confidence.MEDIUM
             priority = 50
-        # 5. Plant-based
-        elif (recipe_all_plant_like or (name_plant and not recipes and not (name_swine or name_meat or name_seafood_review or name_alcohol))):
-            category = SuggestionCategory.LIKELY_PLANT_BASED
-            confidence = Confidence.HIGH if recipe_all_plant_like else Confidence.MEDIUM
+        # 4. Scaled Fish Review Baseline
+        elif has_recipe_fish or has_tag_fish:
+            category = SuggestionCategory.FISH_REVIEW_BASELINE
+            confidence = Confidence.HIGH
+            priority = 40
+        elif name_fish and not recipes:
+            category = SuggestionCategory.FISH_REVIEW_BASELINE
+            confidence = Confidence.MEDIUM
+            priority = 40
+        # 5. Egg / Dairy / Audited Permissible Recipe
+        elif has_recipe_dairy_egg or has_tag_dairy_egg:
+            category = SuggestionCategory.LIKELY_LOW_RISK_RECIPE
+            confidence = Confidence.HIGH
             priority = 30
-        # 6. Fish
-        elif has_recipe_fish or has_tag_fish or (name_fish and not recipes):
-            # Scaled fish is generally permissible, classified as plant-like / halal in MuslimQoL
-            category = SuggestionCategory.LIKELY_PLANT_BASED
-            confidence = Confidence.HIGH if (has_recipe_fish or has_tag_fish) else Confidence.MEDIUM
+        elif name_dairy_egg and not recipes:
+            category = SuggestionCategory.LIKELY_LOW_RISK_RECIPE
+            confidence = Confidence.MEDIUM
             priority = 30
+        # 6. Pure Plant-Based
+        elif recipe_pure_plant:
+            category = SuggestionCategory.LIKELY_PLANT_BASED
+            confidence = Confidence.HIGH
+            priority = 20
+        elif name_plant and not recipes and not (name_dairy_egg or name_fish or name_seafood_review or name_meat or name_swine or name_alcohol):
+            category = SuggestionCategory.LIKELY_PLANT_BASED
+            confidence = Confidence.MEDIUM
+            priority = 20
         # 7. General Review / Conflicts / Alcohol
         elif name_alcohol or has_name_exception or conflicts or (name_meat and not recipes):
             category = SuggestionCategory.GENERAL_REVIEW
