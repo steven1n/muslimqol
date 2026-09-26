@@ -85,6 +85,51 @@ class TagRegistry:
 
         return self._item_to_tags.get(item_id, set())
 
+    def resolve_tag_branches(
+        self,
+        tag_id: str,
+        visited: Optional[Set[str]] = None,
+    ) -> List[Tuple[str, List[str]]]:
+        """
+        Recursively resolves all leaf items or terminal tags within tag_id,
+        preserving the lineage path of nested tags.
+        Returns: List of (leaf_identifier, lineage_path).
+        """
+        clean_tag = tag_id[1:] if tag_id.startswith("#") else tag_id
+        if visited is None:
+            visited = set()
+        if clean_tag in visited:
+            return []
+        visited.add(clean_tag)
+
+        tag_data = self.raw_tags.get(clean_tag)
+        results: List[Tuple[str, List[str]]] = []
+
+        if tag_data and isinstance(tag_data, dict):
+            values = tag_data.get("values", [])
+            for entry in values:
+                if isinstance(entry, dict):
+                    entry_id = entry.get("id", "")
+                else:
+                    entry_id = str(entry)
+
+                if entry_id.startswith("#"):
+                    sub_tag = entry_id[1:]
+                    sub_results = self.resolve_tag_branches(sub_tag, set(visited))
+                    for leaf, path in sub_results:
+                        results.append((leaf, [f"#{clean_tag}"] + path))
+                elif entry_id:
+                    results.append((entry_id, [f"#{clean_tag}", entry_id]))
+        else:
+            resolved = self.resolve_tag(clean_tag)
+            if resolved:
+                for item in sorted(resolved):
+                    results.append((item, [f"#{clean_tag}", item]))
+            else:
+                results.append((f"#{clean_tag}", [f"#{clean_tag}"]))
+
+        return results
+
     ANIMAL_FEED_TAGS = {
         "minecraft:pig_food",
         "minecraft:rabbit_food",

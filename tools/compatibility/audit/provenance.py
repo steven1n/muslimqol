@@ -331,38 +331,7 @@ class RecipeProvenanceEngine:
         if clean_tag in self._tag_branch_cache:
             return self._tag_branch_cache[clean_tag]
 
-        if visited_tags is None:
-            visited_tags = set()
-        if clean_tag in visited_tags:
-            return []
-        visited_tags.add(clean_tag)
-
-        tag_data = self.tag_registry.raw_tags.get(clean_tag)
-        results: List[Tuple[str, List[str]]] = []
-
-        if tag_data and isinstance(tag_data, dict):
-            values = tag_data.get("values", [])
-            for entry in values:
-                if isinstance(entry, dict):
-                    entry_id = entry.get("id", "")
-                else:
-                    entry_id = str(entry)
-
-                if entry_id.startswith("#"):
-                    sub_tag = entry_id[1:]
-                    sub_results = self.resolve_tag_branches(sub_tag, set(visited_tags))
-                    for leaf, path in sub_results:
-                        results.append((leaf, [f"#{clean_tag}"] + path))
-                elif entry_id:
-                    results.append((entry_id, [f"#{clean_tag}", entry_id]))
-        else:
-            resolved = self.tag_registry.resolve_tag(clean_tag)
-            if resolved:
-                for item in sorted(resolved):
-                    results.append((item, [f"#{clean_tag}", item]))
-            else:
-                results.append((f"#{clean_tag}", [f"#{clean_tag}"]))
-
+        results = self.tag_registry.resolve_tag_branches(clean_tag, visited_tags)
         self._tag_branch_cache[clean_tag] = results
         return results
 
@@ -464,7 +433,7 @@ class RecipeProvenanceEngine:
                     signal="swine_alternative",
                     source=item_id,
                     weight=0.9,
-                    detail=f"Variable provenance contains swine branch alternatives"
+                    detail=f"Variable provenance: contains_swine_branch=True, contains_non_swine_branch=True, contains_meat_branch={res.can_meat}",
                 )
             )
         elif var_meat and not mand_meat:
@@ -474,7 +443,7 @@ class RecipeProvenanceEngine:
                     signal="meat_alternative",
                     source=item_id,
                     weight=0.8,
-                    detail=f"Variable provenance contains meat branch alternatives"
+                    detail=f"Variable provenance: contains_swine_branch={res.can_swine}, contains_non_swine_branch={res.can_non_swine}, contains_meat_branch=True",
                 )
             )
 
