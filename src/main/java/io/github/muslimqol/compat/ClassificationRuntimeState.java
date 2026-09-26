@@ -74,11 +74,14 @@ public record ClassificationRuntimeState(
         if (active != null) {
             for (var entry : active.entrySet()) {
                 CompatibilityMetadata meta = entry.getValue();
-                CompatibilityVerificationStatus status = (meta.targetVersion() == null || meta.targetVersion().isBlank())
-                        ? CompatibilityVerificationStatus.VERIFIED
-                        : CompatibilityVerificationStatus.VERIFIED;
+                CompatibilityVerificationStatus status;
+                if (meta.targetVersion() == null || meta.targetVersion().isBlank()) {
+                    status = CompatibilityVerificationStatus.VERIFIED;
+                } else {
+                    status = CompatibilityVerificationStatus.UNVERIFIED;
+                }
                 map.put(entry.getKey(), new CompatibilityPackState(
-                        entry.getKey(), meta, status, meta.targetVersion()
+                        entry.getKey(), meta, status, null
                 ));
             }
         }

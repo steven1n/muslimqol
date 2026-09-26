@@ -468,6 +468,147 @@ class CompatibilityVersionSafetyTest {
         assertEquals(21, fdDist.get(FoodStatus.UNKNOWN));
     }
 
+    // ── 9. Four-Argument State Constructor Regression ───────────────────────────
+
+    @Test
+    void testFourArgumentStateConstructorWithVersionedMetadata() {
+        CompatibilityMetadata versionedMeta = new CompatibilityMetadata(
+                1,
+                "Pam Test",
+                "pamhc2foodcore",
+                "1.0.4",
+                "acd5dd380eafc3f317b67231a2355c204cab254dfdf4ab1f25c084fdd3d317b9"
+        );
+        CompatibilityMetadata legacyMeta = new CompatibilityMetadata(
+                1,
+                "Legacy Pack",
+                "examplemod"
+        );
+        CompatibilityMetadata skippedMeta = new CompatibilityMetadata(
+                1,
+                "Skipped Pack",
+                "absentmod",
+                "2.0.0",
+                null
+        );
+
+        ClassificationRuntimeState state = new ClassificationRuntimeState(
+                Map.of(),
+                Map.of(),
+                Map.of("pam", versionedMeta, "legacy", legacyMeta),
+                Map.of("skipped", skippedMeta)
+        );
+
+        // 1. Versioned active pack without installed-version evidence must be UNVERIFIED, installedVersion=null
+        assertTrue(state.packStates().containsKey("pam"));
+        CompatibilityPackState pamState = state.packStates().get("pam");
+        assertTrue(pamState.isActive());
+        assertEquals(CompatibilityVerificationStatus.UNVERIFIED, pamState.verificationStatus());
+        assertNull(pamState.installedVersion(), "installedVersion must be null, not fabricated from targetVersion");
+        assertFalse(pamState.isVerified());
+        assertTrue(pamState.isUnverified());
+        assertFalse(state.verifiedPacks().containsKey("pam"), "verifiedPacks must NOT contain unevaluated versioned pack");
+        assertTrue(state.unverifiedPacks().containsKey("pam"), "unverifiedPacks must contain unevaluated versioned pack");
+
+        // 2. Legacy unversioned pack must be VERIFIED (legacy unversioned pack), installedVersion=null
+        assertTrue(state.packStates().containsKey("legacy"));
+        CompatibilityPackState legacyState = state.packStates().get("legacy");
+        assertTrue(legacyState.isActive());
+        assertEquals(CompatibilityVerificationStatus.VERIFIED, legacyState.verificationStatus());
+        assertNull(legacyState.installedVersion());
+        assertTrue(legacyState.isVerified());
+        assertFalse(legacyState.isUnverified());
+        assertTrue(state.verifiedPacks().containsKey("legacy"));
+        assertFalse(state.unverifiedPacks().containsKey("legacy"));
+
+        // 3. Skipped pack must be SKIPPED, installedVersion=null
+        assertTrue(state.packStates().containsKey("skipped"));
+        CompatibilityPackState skipState = state.packStates().get("skipped");
+        assertFalse(skipState.isActive());
+        assertTrue(skipState.isSkipped());
+        assertEquals(CompatibilityVerificationStatus.SKIPPED, skipState.verificationStatus());
+        assertNull(skipState.installedVersion());
+        assertFalse(state.verifiedPacks().containsKey("skipped"));
+        assertFalse(state.unverifiedPacks().containsKey("skipped"));
+    }
+
+    // ── 10. CompatibilitySnapshot Legacy Constructor Regression ─────────────────
+
+    @Test
+    void testCompatibilitySnapshotLegacyConstructorWithVersionedMetadata() {
+        CompatibilityMetadata versionedMeta = new CompatibilityMetadata(
+                1,
+                "Pam Test",
+                "pamhc2foodcore",
+                "1.0.4",
+                "acd5dd380eafc3f317b67231a2355c204cab254dfdf4ab1f25c084fdd3d317b9"
+        );
+
+        // Legacy 3-argument snapshot constructor: (providers, activePacks, skippedPacks)
+        CompatibilitySnapshot snapshot = new CompatibilitySnapshot(
+                List.of(),
+                Map.of("pam", versionedMeta),
+                Map.of()
+        );
+
+        assertTrue(snapshot.getPackStates().containsKey("pam"));
+        CompatibilityPackState packState = snapshot.getPackStates().get("pam");
+
+        // Must be UNVERIFIED with null installedVersion
+        assertEquals(CompatibilityVerificationStatus.UNVERIFIED, packState.verificationStatus());
+        assertNull(packState.installedVersion(), "installedVersion must be null, never fabricated 1.0.4");
+        assertFalse(packState.isVerified());
+        assertTrue(packState.isUnverified());
+
+        // Diagnostic output must show Installed: unknown, Status: UNVERIFIED
+        List<String> lines = MuslimQolCommands.formatCompatibilityDiagnostics(snapshot);
+        assertTrue(lines.contains("Pam Test"));
+        assertTrue(lines.contains("  Target: 1.0.4"));
+        assertTrue(lines.contains("  Installed: unknown"));
+        assertTrue(lines.contains("  Status: UNVERIFIED"));
+        assertFalse(lines.contains("  Status: VERIFIED"));
+        assertFalse(lines.contains("  Installed: 1.0.4"), "Installed must not claim 1.0.4 without resolution");
+    }
+
+    // ── 11. Explicit Evaluated State vs Unevaluated State Distinction ────────────
+
+    @Test
+    void testExplicitEvaluatedPackStateVsUnevaluatedConstruction() {
+        CompatibilityMetadata meta = new CompatibilityMetadata(
+                1,
+                "Pam Food Core",
+                "pamhc2foodcore",
+                "1.0.4",
+                "acd5dd380eafc3f317b67231a2355c204cab254dfdf4ab1f25c084fdd3d317b9"
+        );
+
+        // 1. Explicit evaluated path with resolver returning "1.0.4"
+        FoodCompatibilityManager.setModLoadedChecker("pamhc2foodcore"::equals);
+        FoodCompatibilityManager.setModVersionResolver(mod -> "pamhc2foodcore".equals(mod) ? Optional.of("1.0.4") : Optional.empty());
+
+        CompatibilityPackState evaluatedState = FoodCompatibilityManager.evaluatePack("pamhc2foodcore", meta);
+        assertEquals(CompatibilityVerificationStatus.VERIFIED, evaluatedState.verificationStatus());
+        assertEquals("1.0.4", evaluatedState.installedVersion());
+
+        List<String> evalLines = MuslimQolCommands.formatPackDiagnostics(evaluatedState);
+        assertTrue(evalLines.contains("  Target: 1.0.4"));
+        assertTrue(evalLines.contains("  Installed: 1.0.4"));
+        assertTrue(evalLines.contains("  Status: VERIFIED"));
+
+        // 2. In contrast, unevaluated 4-arg runtime state constructor with the exact same metadata
+        ClassificationRuntimeState state = new ClassificationRuntimeState(
+                Map.of(), Map.of(), Map.of("pamhc2foodcore", meta), Map.of()
+        );
+        CompatibilityPackState unevaluatedState = state.packStates().get("pamhc2foodcore");
+        assertEquals(CompatibilityVerificationStatus.UNVERIFIED, unevaluatedState.verificationStatus());
+        assertNull(unevaluatedState.installedVersion());
+
+        List<String> unevalLines = MuslimQolCommands.formatPackDiagnostics(unevaluatedState);
+        assertTrue(unevalLines.contains("  Target: 1.0.4"));
+        assertTrue(unevalLines.contains("  Installed: unknown"));
+        assertTrue(unevalLines.contains("  Status: UNVERIFIED"));
+    }
+
     private Map<ResourceLocation, JsonElement> loadPamsFoodCoreJsonMap(String namespace) throws Exception {
         Map<ResourceLocation, JsonElement> jsonMap = new HashMap<>();
         for (String file : List.of("pork.json", "doubtful.json", "meat_unknown.json", "fish.json", "plants.json", "prepared_meals.json")) {

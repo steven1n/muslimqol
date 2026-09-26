@@ -149,6 +149,9 @@ When evaluating loaded compatibility packs, the engine establishes a determinist
 3. **`SKIPPED`**:
    - `target_mod` is not loaded, or the metadata is invalid. The pack is completely inactive.
 
+> [!NOTE]
+> A declared `target_version` is evidence of the version the pack was audited against, not evidence of the version currently installed. Compatibility states constructed without runtime version information are conservatively `UNVERIFIED` for versioned packs.
+
 ### Parse States (`MetadataParseResult`)
 The loader classifies pack metadata into three distinct states:
 1. **`Absent`**: No `compatibility.json` descriptor present. The datapack is treated as a standard v0.1 legacy pack and loads unconditionally.
