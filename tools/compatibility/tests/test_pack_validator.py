@@ -111,6 +111,72 @@ class TestPackValidator(unittest.TestCase):
         self.assertFalse(report.clean)
         self.assertTrue(any(d.error_type == "PACK_PARSE_ERROR" for d in report.diagnostics))
 
+    def test_pams_food_core_bundled_pack_validation(self):
+        """Verifies the bundled Pam's Food Core compatibility pack against frozen reference manifest."""
+        ref_path = "src/test/resources/reference/pamhc2foodcore-1.0.4-edible-items.json"
+        pack_path = "src/main/resources/data/muslimqol_pamhc2foodcore"
+
+        self.assertTrue(os.path.isfile(ref_path), "Pam's reference manifest must exist")
+        self.assertTrue(os.path.isdir(pack_path), "Pam's compatibility pack directory must exist")
+
+        with open(ref_path, "r", encoding="utf-8") as f:
+            ref_data = json.load(f)
+
+        candidates = sorted(ref_data["items"])
+        self.assertEqual(len(candidates), 180)
+
+        report, curated_map = validate_pack(pack_path, candidates, candidates)
+
+        self.assertTrue(report.clean, f"Pam's pack must be clean, diagnostics: {report.diagnostics}")
+        self.assertEqual(report.classified_count, 180)
+        self.assertEqual(len(report.missing_items), 0)
+        self.assertEqual(len(report.extra_items), 0)
+        self.assertEqual(len(report.duplicate_items), 0)
+        self.assertEqual(len(report.unknown_ids), 0)
+        self.assertEqual(len(report.diagnostics), 0)
+
+        # Exact set equality
+        self.assertEqual(set(curated_map.keys()), set(candidates))
+
+        # Expected status distribution
+        self.assertEqual(report.status_distribution["HALAL"], 125)
+        self.assertEqual(report.status_distribution["RESTRICTED"], 13)
+        self.assertEqual(report.status_distribution["DOUBTFUL"], 13)
+        self.assertEqual(report.status_distribution["UNKNOWN"], 29)
+
+    def test_farmers_delight_bundled_pack_validation(self):
+        """Verifies the bundled Farmer's Delight compatibility pack against frozen reference manifest."""
+        ref_path = "src/test/resources/reference/farmers-delight-1.3.4-edible-items.json"
+        pack_path = "src/main/resources/data/muslimqol_farmersdelight"
+
+        self.assertTrue(os.path.isfile(ref_path), "Farmer's Delight reference manifest must exist")
+        self.assertTrue(os.path.isdir(pack_path), "Farmer's Delight compatibility pack directory must exist")
+
+        with open(ref_path, "r", encoding="utf-8") as f:
+            ref_data = json.load(f)
+
+        candidates = sorted(ref_data["items"])
+        self.assertEqual(len(candidates), 89)
+
+        report, curated_map = validate_pack(pack_path, candidates, candidates)
+
+        self.assertTrue(report.clean, f"Farmer's Delight pack must be clean, diagnostics: {report.diagnostics}")
+        self.assertEqual(report.classified_count, 89)
+        self.assertEqual(len(report.missing_items), 0)
+        self.assertEqual(len(report.extra_items), 0)
+        self.assertEqual(len(report.duplicate_items), 0)
+        self.assertEqual(len(report.unknown_ids), 0)
+        self.assertEqual(len(report.diagnostics), 0)
+
+        # Exact set equality
+        self.assertEqual(set(curated_map.keys()), set(candidates))
+
+        # Expected status distribution
+        self.assertEqual(report.status_distribution["HALAL"], 52)
+        self.assertEqual(report.status_distribution["RESTRICTED"], 11)
+        self.assertEqual(report.status_distribution["DOUBTFUL"], 5)
+        self.assertEqual(report.status_distribution["UNKNOWN"], 21)
+
 
 if __name__ == "__main__":
     unittest.main()
