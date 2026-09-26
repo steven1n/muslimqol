@@ -27,7 +27,7 @@ This document records the human-reviewed dietary classification audit and verifi
 
 | Status | Count | Percentage | Primary Reasons | Description |
 | :--- | :---: | :---: | :--- | :--- |
-| **HALAL** | **125** | 69.4% | `plant_based` (52)<br>`audited_permitted_recipe` (65)<br>`fish` (8) | Pure plant/crop foods, fruits, vegetables, scaled fish, and audited baked goods/dairy/egg dishes. |
+| **HALAL** | **125** | 69.4% | `plant_based` (51)<br>`audited_permitted_recipe` (66)<br>`fish` (8) | Pure plant/crop foods, fruits, vegetables, scaled fish, and audited baked goods/dairy/egg dishes. |
 | **RESTRICTED** | **13** | 7.2% | `swine` (13) | Items containing mandatory pork or swine-derived ingredients. |
 | **DOUBTFUL** | **13** | 7.2% | `variable_provenance` (13) | Dishes utilizing variable stock or ambiguous meat tags with valid pork alternatives. |
 | **UNKNOWN** | **29** | 16.1% | `unspecified_meat` (29) | Livestock meat (beef, chicken, mutton, rabbit) with unverified in-game slaughter provenance. |
@@ -132,34 +132,29 @@ Livestock meats (cattle, poultry, sheep, rabbit) are permissible in principle bu
 ## 6. All HALAL Items (125 Items)
 
 ### 6.1 Scaled Fish (8 Items, Reason: `fish`)
-- `pamhc2foodcore:groundfishitem`
-- `pamhc2foodcore:cookedgroundfishitem`
-- `pamhc2foodcore:fishjerkyitem`
-- `pamhc2foodcore:grilledfishskeweritem`
 - `pamhc2foodcore:basicfishsandwichitem`
+- `pamhc2foodcore:cookedgroundfishitem`
 - `pamhc2foodcore:fishandchipsitem`
+- `pamhc2foodcore:fishjerkyitem`
 - `pamhc2foodcore:fishpotpieitem`
 - `pamhc2foodcore:fishsticksitem`
+- `pamhc2foodcore:grilledfishskeweritem`
+- `pamhc2foodcore:groundfishitem`
 
-### 6.2 Pure Plant-Based Foods (52 Items, Reason: `plant_based`)
-- **Juices & Smoothies (12)**: `applejuiceitem`, `carrotjuiceitem`, `chorusjuiceitem`, `glowberryjuiceitem`, `melonjuiceitem`, `p8juiceitem`, `sweetberryjuiceitem`, `fruitpunchitem`, `applesmoothieitem`, `chorussmoothieitem`, `glowberrysmoothieitem`, `melonsmoothieitem`, `sweetberrysmoothieitem`
-- **Jellies, Sauces & Salads (7)**: `applejellyitem`, `applesauceitem`, `chorusjellyitem`, `fruitsaladitem`, `glowberryjellyitem`, `melonjellyitem`, `sweetberryjellyitem`
-- **Pies & Breads (pure plant dough) (10)**: `applepieitem`, `carrotbreaditem`, `carrotpieitem`, `chocolatepieitem`, `choruspieitem`, `glowberrypieitem`, `honeypieitem`, `melonpieitem`, `pumpkinbreaditem`, `sweetberrypieitem`
-- **Snacks, Popsicles & Confections (15)**: `applepopsicleitem`, `choruspopsicleitem`, `glowberrypopsicleitem`, `melonpopsicleitem`, `sweetberrypopsicleitem`, `crackeritem`, `friesitem`, `potatochipsitem`, `softpretzelitem`, `roastedsunflowerseedsitem`, `sunflowerseedsitem`, `trailmixitem`, `cottoncandyitem`, `gummycreepersitem`, `jellybeansitem`, `marshmellowsitem`, `chocolatebaritem`, `smoresitem`
-- **Vegetable Dishes (2)**: `bakedvegetablemedlyitem`, `pickledbeetsitem`, `grilledveggieskeweritem`, `veggiepotpieitem`
+### 6.2 Pure Plant-Based Foods (51 Items, Reason: `plant_based`)
+- **Juices & Smoothies (13)**: `applejuiceitem`, `applesmoothieitem`, `carrotjuiceitem`, `chorusjuiceitem`, `chorussmoothieitem`, `fruitpunchitem`, `glowberryjuiceitem`, `glowberrysmoothieitem`, `melonjuiceitem`, `melonsmoothieitem`, `p8juiceitem`, `sweetberryjuiceitem`, `sweetberrysmoothieitem`
+- **Jellies, Sauces & Salads (8)**: `applejellyitem`, `applesauceitem`, `chorusjellyitem`, `fruitsaladitem`, `glowberryjellyitem`, `jellybeansitem`, `melonjellyitem`, `sweetberryjellyitem`
+- **Pies & Breads (pure plant dough) (9)**: `applepieitem`, `carrotbreaditem`, `carrotpieitem`, `chocolatepieitem`, `choruspieitem`, `glowberrypieitem`, `melonpieitem`, `pumpkinbreaditem`, `sweetberrypieitem`
+- **Vegetable Dishes (4)**: `bakedvegetablemedlyitem`, `grilledveggieskeweritem`, `pickledbeetsitem`, `veggiepotpieitem`
+- **Snacks, Popsicles & Confections (17)**: `applepopsicleitem`, `chocolatebaritem`, `choruspopsicleitem`, `cottoncandyitem`, `crackeritem`, `friesitem`, `glowberrypopsicleitem`, `gummycreepersitem`, `marshmellowsitem`, `melonpopsicleitem`, `potatochipsitem`, `roastedsunflowerseedsitem`, `smoresitem`, `softpretzelitem`, `sunflowerseedsitem`, `sweetberrypopsicleitem`, `trailmixitem`
 
-### 6.3 Audited Permitted Recipes (65 Items, Reason: `audited_permitted_recipe`)
-Foods containing dairy (milk, butter, cheese, yogurt, ice cream) or eggs alongside plant ingredients:
+### 6.3 Audited Permitted Recipes (66 Items, Reason: `audited_permitted_recipe`)
+Foods containing dairy (milk, butter, cheese, yogurt, ice cream), honey, or eggs alongside plant ingredients:
 - **Egg Dishes (3)**: `boiledeggitem`, `friedeggitem`, `scrambledeggitem`
-- **Dairy Products & Desserts (16)**: `cheeseitem`, `yogurtitem`, `icecreamitem`, `caramelitem`, `caramelicecreamitem`, `caramelpieitem`, `chocolateicecreamitem`, `chocolatemilkitem`, `hotchocolateitem`, `fudgesicleitem`, `chocolatecaramelfudgeitem`, `chocolaterollitem`, `cookiesandmilkitem`, `crackersandcheeseitem`, `appleyogurtitem`, `caramelyogurtitem`, `chocolateyogurtitem`, `chorusyogurtitem`, `glowberryyogurtitem`, `melonyogurtitem`, `pumpkinyogurtitem`, `sweetberryyogurtitem`
-- **Baked Goods (Donuts, Muffins, Cakes) (34)**: `plaindonutitem`, `appledonutitem`, `carameldonutitem`, `carrotdonutitem`, `chocolatedonutitem`, `chorusdonutitem`, `glowberrydonutitem`, `honeyglazeddonutitem`, `melondonutitem`, `powdereddonutitem`, `pumpkindonutitem`, `sprinklesdonutitem`, `sweetberrydonutitem`, `applemuffinitem`, `caramelmuffinitem`, `carrotmuffinitem`, `chocolatemuffinitem`, `chorusmuffinitem`, `glowberrymuffinitem`, `honeymuffinitem`, `melonmuffinitem`, `pumpkinmuffinitem`, `sweetberrymuffinitem`, `carrotcakeitem`, `cheesecakeitem`, `chocolatecakeitem`, `pumpkincheesecakeitem`
-- **Savory Composite Meals (6)**: `macncheeseitem`, `grilledcheeseitem`, `basicveggieburgeritem`, `mashedpotatoesitem`, `butteredbakedpotatoitem`, `glazedcarrotsitem`, `caramelappleitem`
-- **Toasts (6)**: `toastitem`, and the 5 jelly toast items:
-  - `applejellytoastitem`
-  - `chorusjellytoastitem`
-  - `glowberryjellytoastitem`
-  - `melonjellytoastitem`
-  - `sweetberryjellytoastitem`
+- **Dairy Products, Honey & Desserts (24)**: `appleyogurtitem`, `caramelappleitem`, `caramelicecreamitem`, `caramelitem`, `caramelpieitem`, `caramelyogurtitem`, `cheeseitem`, `chocolatecaramelfudgeitem`, `chocolateicecreamitem`, `chocolatemilkitem`, `chocolaterollitem`, `chocolateyogurtitem`, `chorusyogurtitem`, `cookiesandmilkitem`, `crackersandcheeseitem`, `fudgesicleitem`, `glowberryyogurtitem`, `honeypieitem`, `hotchocolateitem`, `icecreamitem`, `melonyogurtitem`, `pumpkinyogurtitem`, `sweetberryyogurtitem`, `yogurtitem`
+- **Baked Goods (Donuts, Muffins, Cakes) (27)**: `appledonutitem`, `applemuffinitem`, `carameldonutitem`, `caramelmuffinitem`, `carrotcakeitem`, `carrotdonutitem`, `carrotmuffinitem`, `cheesecakeitem`, `chocolatecakeitem`, `chocolatedonutitem`, `chocolatemuffinitem`, `chorusdonutitem`, `chorusmuffinitem`, `glowberrydonutitem`, `glowberrymuffinitem`, `honeyglazeddonutitem`, `honeymuffinitem`, `melondonutitem`, `melonmuffinitem`, `plaindonutitem`, `powdereddonutitem`, `pumpkincheesecakeitem`, `pumpkindonutitem`, `pumpkinmuffinitem`, `sprinklesdonutitem`, `sweetberrydonutitem`, `sweetberrymuffinitem`
+- **Savory Composite Meals (6)**: `basicveggieburgeritem`, `butteredbakedpotatoitem`, `glazedcarrotsitem`, `grilledcheeseitem`, `macncheeseitem`, `mashedpotatoesitem`
+- **Toasts (6)**: `toastitem`, and the 5 jelly toast items: `applejellytoastitem`, `chorusjellytoastitem`, `glowberryjellytoastitem`, `melonjellytoastitem`, `sweetberryjellytoastitem`
 
 ---
 
@@ -191,9 +186,31 @@ None of the leaf ingredients contain swine, carrion, blood, or alcohol. Dairy an
 
 ---
 
-## 8. Verification Results
+## 8. Compatibility Metadata Honesty & Runtime Boundaries
 
-### 8.1 Pack Validator Output
+In `compatibility.json`, the pack declares:
+```json
+{
+  "format": 1,
+  "name": "MuslimQoL Pam's HarvestCraft 2 Food Core Compatibility",
+  "target_mod": "pamhc2foodcore",
+  "target_version": "1.0.4",
+  "reference_jar_sha256": "acd5dd380eafc3f317b67231a2355c204cab254dfdf4ab1f25c084fdd3d317b9"
+}
+```
+
+> [!NOTE]
+> **Runtime Metadata Boundary**:
+> - `target_version` and `reference_jar_sha256` are **audit and provenance reference metadata**.
+> - Current Java `CompatibilityMetadata` consumes `format`, `name`, and `target_mod`.
+> - **Runtime activation is currently gated by `target_mod` presence only.** MuslimQoL does **not** validate the installed Pam JAR checksum or enforce exact version matching at game startup.
+> - *Follow-up note for pre-0.2 release*: Consider version-aware compatibility-pack activation and unverified-version runtime diagnostics in the core compatibility framework.
+
+---
+
+## 9. Verification Results
+
+### 9.1 Pack Validator Output
 ```text
 Pack Name:    muslimqol_pamhc2foodcore
 Clean:        True
@@ -206,8 +223,8 @@ Diagnostics:  0
 Status distribution: {'DOUBTFUL': 13, 'HALAL': 125, 'UNKNOWN': 29, 'RESTRICTED': 13}
 ```
 
-### 8.2 Test Suite Execution
-- **Python Unit Tests**: **73 passed**, 0 failed (`tools/compatibility/tests/`)
+### 9.2 Test Suite Execution
+- **Python Unit Tests**: **74 passed**, 0 failed (`tools/compatibility/tests/`)
 - **Java Unit Tests**: **74 passed**, 0 failed (`./gradlew clean test build`)
 - **Farmer's Delight Pack Regression**: Clean = True, 89/89 classified (`HALAL: 52, RESTRICTED: 11, DOUBTFUL: 5, UNKNOWN: 21`)
 - **Production Java Changes**: **0 lines modified** (`src/main/java` remains completely unchanged)
