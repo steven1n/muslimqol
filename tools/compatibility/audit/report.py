@@ -13,6 +13,7 @@ from tools.compatibility.audit.models import (
     Confidence,
     ItemAuditResult,
     PackValidationReport,
+    ParseDiagnostic,
     SuggestionCategory,
 )
 
@@ -24,6 +25,7 @@ def generate_summary_dict(
     edible_candidates: int,
     results: List[ItemAuditResult],
     pack_report: Optional[PackValidationReport] = None,
+    diagnostics: Optional[List[ParseDiagnostic]] = None,
 ) -> Dict[str, Any]:
     """Generates the structured dictionary for summary.json."""
     suggestion_counts: Dict[str, int] = {
@@ -41,14 +43,24 @@ def generate_summary_dict(
         "suggestions": suggestion_counts,
     }
 
+    if diagnostics:
+        summary["diagnostics"] = [d.to_dict() for d in diagnostics]
+
     if pack_report:
         summary["pack_validation"] = {
+            "clean": pack_report.clean,
             "classified": pack_report.classified_count,
             "missing": len(pack_report.missing_items),
             "extra": len(pack_report.extra_items),
             "duplicates": len(pack_report.duplicate_items),
+            "unknown": len(pack_report.unknown_ids),
+            "missing_items": sorted(pack_report.missing_items),
+            "extra_items": sorted(pack_report.extra_items),
+            "duplicate_items": sorted(pack_report.duplicate_items),
+            "unknown_ids": sorted(pack_report.unknown_ids),
             "status_distribution": pack_report.status_distribution,
             "reason_distribution": pack_report.reason_distribution,
+            "diagnostics": [d.to_dict() for d in pack_report.diagnostics],
         }
 
     return summary
@@ -72,7 +84,9 @@ def write_review_md(
     mod_id: str,
     jar_sha256: str,
     results: List[ItemAuditResult],
+    total_items_count: int,
     pack_report: Optional[PackValidationReport] = None,
+    diagnostics: Optional[List[ParseDiagnostic]] = None,
 ) -> None:
     """Generates prioritized Markdown review report."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
@@ -90,6 +104,13 @@ def write_review_md(
     # Collect conflicts
     items_with_conflicts = [r for r in sorted_results if r.suggestion.conflicts]
 
+    # Combine all diagnostics for reporting
+    all_diagnostics: List[ParseDiagnostic] = []
+    if diagnostics:
+        all_diagnostics.extend(diagnostics)
+    if pack_report and pack_report.diagnostics:
+        all_diagnostics.extend(pack_report.diagnostics)
+
     lines: List[str] = [
         f"# Food Compatibility Audit Review: `{mod_id}`",
         "",
@@ -97,25 +118,45 @@ def write_review_md(
         "> **Notice**: This review report was generated deterministically by the MuslimQoL Compatibility Audit Engine.",
         "> Heuristic suggestions and review priorities are diagnostic indicators for human reviewers and do NOT",
         "> represent religious rulings or automatically published MuslimQoL classifications.",
+        ">",
+        "> **Review Priority Semantics**: The numeric priority scale (10–100) reflects audit urgency and review triage order, NOT theological severity.",
         "",
         "## Audit Overview",
         "",
         f"- **Mod ID**: `{mod_id}`",
         f"- **JAR SHA-256**: `{jar_sha256}`",
-        f"- **Total Registry Items Discovered**: {len(sorted_results)} (edible candidates)",
+        f"- **Total Registry Items Discovered**: {total_items_count}",
+        f"- **Edible Candidates Audited**: {len(sorted_results)}",
         f"- **Items with Detected Conflicts**: {len(items_with_conflicts)}",
     ]
 
     if pack_report:
         lines.extend([
             f"- **Curated Pack Validated**: `{pack_report.pack_name}`",
+            f"  - Clean: **{pack_report.clean}**",
             f"  - Classified in pack: {pack_report.classified_count}",
             f"  - Missing in pack: {len(pack_report.missing_items)}",
             f"  - Extra in pack: {len(pack_report.extra_items)}",
             f"  - Duplicates in pack: {len(pack_report.duplicate_items)}",
+            f"  - Unknown IDs in pack: {len(pack_report.unknown_ids)}",
         ])
 
     lines.append("")
+
+    # Section 0: Diagnostics (if any)
+    if all_diagnostics:
+        lines.extend([
+            "---",
+            "## Parser & Audit Diagnostics",
+            "",
+            "| Severity | Error Type | Source Path | Message |",
+            "| :---: | :--- | :--- | :--- |",
+        ])
+        for diag in all_diagnostics:
+            lines.append(
+                f"| **{diag.severity}** | `{diag.error_type}` | `{diag.source_path}` | {diag.message} |"
+            )
+        lines.append("")
 
     # Section 1: Evidence Conflicts (highest priority for human attention)
     if items_with_conflicts:
@@ -137,7 +178,7 @@ def write_review_md(
         lines.append("")
 
     # Section 2: Pack Mismatches (if any)
-    if pack_report and (pack_report.missing_items or pack_report.extra_items or pack_report.duplicate_items):
+    if pack_report and (pack_report.missing_items or pack_report.extra_items or pack_report.duplicate_items or pack_report.unknown_ids):
         lines.extend([
             "---",
             "## 2. Compatibility Pack Mismatches",
@@ -154,6 +195,10 @@ def write_review_md(
         if pack_report.duplicate_items:
             lines.append(f"### Duplicate Entries ({len(pack_report.duplicate_items)})")
             for itm in pack_report.duplicate_items:
+                lines.append(f"- `{itm}`")
+        if pack_report.unknown_ids:
+            lines.append(f"### Unknown Registry IDs in Pack ({len(pack_report.unknown_ids)})")
+            for itm in pack_report.unknown_ids:
                 lines.append(f"- `{itm}`")
         lines.append("")
 
@@ -205,9 +250,21 @@ def write_review_md(
     )
 
     render_category_section(
+        SuggestionCategory.FISH_REVIEW_BASELINE,
+        "Scaled Fish Review Baseline",
+        "Scaled fish or fish-derived items requiring review under seafood jurisprudence."
+    )
+
+    render_category_section(
+        SuggestionCategory.LIKELY_LOW_RISK_RECIPE,
+        "Likely Low-Risk Recipes (Dairy / Eggs / Permitted)",
+        "Dairy, egg, or permitted composite items with low risk profiles."
+    )
+
+    render_category_section(
         SuggestionCategory.LIKELY_PLANT_BASED,
         "Likely Plant-Based / Permissible Baseline",
-        "Pure crop, vegetable, fruit, grain, fungal, dairy, egg, or scaled fish items."
+        "Pure crop, vegetable, fruit, grain, fungal, or plant-derived items."
     )
 
     render_category_section(

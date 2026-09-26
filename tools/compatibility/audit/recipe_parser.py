@@ -8,7 +8,7 @@ Extracts inputs and outputs from recipe data, traverses nested ingredients
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from tools.compatibility.audit.models import AuditEvidence, EvidenceKind
+from tools.compatibility.audit.models import AuditEvidence, EvidenceKind, ParseDiagnostic
 
 
 @dataclass
@@ -56,7 +56,7 @@ def format_ingredient_str(ing: Any) -> str:
     return str(ing)
 
 
-def parse_ingredient_node(node: Any, source_file: str) -> ParsedIngredient:
+def parse_ingredient_node(node: Any, source_file: str, diagnostics: Optional[List[ParseDiagnostic]] = None) -> ParsedIngredient:
     """Recursively parses an ingredient node into a ParsedIngredient."""
     parsed = ParsedIngredient(raw_type="unknown")
 
@@ -64,23 +64,35 @@ def parse_ingredient_node(node: Any, source_file: str) -> ParsedIngredient:
         parsed.raw_type = "list"
         parsed.formatted = " | ".join(format_ingredient_str(x) for x in node)
         for child in node:
-            child_parsed = parse_ingredient_node(child, source_file)
+            child_parsed = parse_ingredient_node(child, source_file, diagnostics)
             parsed.children.append(child_parsed)
             parsed.items.update(child_parsed.items)
             parsed.tags.update(child_parsed.tags)
-        # Multiple choices in a list means variable ingredient
         if len(node) > 1:
             parsed.is_variable = True
         return parsed
 
+    if isinstance(node, str):
+        parsed.raw_type = "literal"
+        parsed.formatted = node
+        if node.startswith("#"):
+            parsed.tags.add(node[1:])
+        elif ":" in node:
+            parsed.items.add(node)
+        return parsed
+
     if not isinstance(node, dict):
         parsed.raw_type = "literal"
-        s = str(node)
-        parsed.formatted = s
-        if s.startswith("#"):
-            parsed.tags.add(s[1:])
-        elif ":" in s:
-            parsed.items.add(s)
+        parsed.formatted = str(node)
+        if diagnostics is not None:
+            diagnostics.append(
+                ParseDiagnostic(
+                    source_path=source_file,
+                    error_type="MALFORMED_INGREDIENT",
+                    message=f"Ingredient node is neither dict nor string: {node}",
+                    severity="WARNING",
+                )
+            )
         return parsed
 
     ing_type = node.get("type", "")
@@ -89,7 +101,7 @@ def parse_ingredient_node(node: Any, source_file: str) -> ParsedIngredient:
         children = node.get("children", [])
         parsed.formatted = "(" + " | ".join(format_ingredient_str(c) for c in children) + ")"
         for child in children:
-            child_parsed = parse_ingredient_node(child, source_file)
+            child_parsed = parse_ingredient_node(child, source_file, diagnostics)
             parsed.children.append(child_parsed)
             parsed.items.update(child_parsed.items)
             parsed.tags.update(child_parsed.tags)
@@ -101,8 +113,8 @@ def parse_ingredient_node(node: Any, source_file: str) -> ParsedIngredient:
         parsed.raw_type = "difference"
         base_node = node.get("base", {})
         sub_node = node.get("subtracted", {})
-        base_parsed = parse_ingredient_node(base_node, source_file)
-        sub_parsed = parse_ingredient_node(sub_node, source_file)
+        base_parsed = parse_ingredient_node(base_node, source_file, diagnostics)
+        sub_parsed = parse_ingredient_node(sub_node, source_file, diagnostics)
         parsed.base = base_parsed
         parsed.subtracted = sub_parsed
         parsed.formatted = f"({base_parsed.formatted} - {sub_parsed.formatted})"
@@ -125,6 +137,15 @@ def parse_ingredient_node(node: Any, source_file: str) -> ParsedIngredient:
         return parsed
 
     parsed.formatted = str(node)
+    if diagnostics is not None:
+        diagnostics.append(
+            ParseDiagnostic(
+                source_path=source_file,
+                error_type="UNSUPPORTED_INGREDIENT",
+                message=f"Unsupported ingredient node structure: {node}",
+                severity="WARNING"
+            )
+        )
     return parsed
 
 
@@ -145,27 +166,54 @@ def get_id_from_result(obj: Any) -> Optional[str]:
     return None
 
 
-def parse_recipe_json(recipe_id: str, data: dict, default_namespace: str = "") -> Optional[ParsedRecipe]:
+def parse_recipe_json(
+    recipe_id: str,
+    data: dict,
+    default_namespace: str = "",
+    diagnostics: Optional[List[ParseDiagnostic]] = None
+) -> Optional[ParsedRecipe]:
     """
     Parses a single recipe JSON dict into a ParsedRecipe.
     Handles shaped, shapeless, cooking, cutting, and generic mod recipes.
     """
+    if not isinstance(data, dict):
+        if diagnostics is not None:
+            diagnostics.append(
+                ParseDiagnostic(
+                    source_path=recipe_id,
+                    error_type="MALFORMED_RECIPE",
+                    message="Recipe JSON root is not an object",
+                    severity="ERROR"
+                )
+            )
+        return None
+
     results: List[str] = []
-    result_obj = data.get("result")
-    if isinstance(result_obj, list):
-        for r in result_obj:
-            rid = get_id_from_result(r)
-            if rid:
-                results.append(rid)
-    elif result_obj:
-        rid = get_id_from_result(result_obj)
+    
+    # Check 'result' and 'results'
+    result_candidates = []
+    if "result" in data:
+        res = data["result"]
+        if isinstance(res, list):
+            result_candidates.extend(res)
+        else:
+            result_candidates.append(res)
+    if "results" in data:
+        res = data["results"]
+        if isinstance(res, list):
+            result_candidates.extend(res)
+        else:
+            result_candidates.append(res)
+
+    for r in result_candidates:
+        rid = get_id_from_result(r)
         if rid:
             results.append(rid)
 
     if not results:
+        # Non-item recipe (e.g. fluid, custom serializer)
         return None
 
-    # Normalize result IDs with default_namespace if needed
     normalized_results = []
     for r in results:
         if ":" not in r and default_namespace:
@@ -178,23 +226,27 @@ def parse_recipe_json(recipe_id: str, data: dict, default_namespace: str = "") -
 
     if "ingredients" in data and isinstance(data["ingredients"], list):
         for ing in data["ingredients"]:
-            parsed_ing = parse_ingredient_node(ing, recipe_id)
+            parsed_ing = parse_ingredient_node(ing, recipe_id, diagnostics)
             ingredients.append(parsed_ing)
             summary_parts.append(parsed_ing.formatted)
     elif "ingredient" in data:
-        parsed_ing = parse_ingredient_node(data["ingredient"], recipe_id)
+        parsed_ing = parse_ingredient_node(data["ingredient"], recipe_id, diagnostics)
+        ingredients.append(parsed_ing)
+        summary_parts.append(parsed_ing.formatted)
+    elif "input" in data and isinstance(data["input"], (dict, list, str)):
+        parsed_ing = parse_ingredient_node(data["input"], recipe_id, diagnostics)
         ingredients.append(parsed_ing)
         summary_parts.append(parsed_ing.formatted)
     elif "key" in data and "pattern" in data:
         # Shaped crafting recipe
-        key_map = data["key"]
-        pattern = data["pattern"]
+        key_map = data.get("key", {})
+        pattern = data.get("pattern", [])
         counts: Dict[str, Tuple[ParsedIngredient, int]] = {}
         for row in pattern:
             for ch in row:
                 if ch != " " and ch in key_map:
                     raw_node = key_map[ch]
-                    parsed_node = parse_ingredient_node(raw_node, recipe_id)
+                    parsed_node = parse_ingredient_node(raw_node, recipe_id, diagnostics)
                     key_fmt = parsed_node.formatted
                     if key_fmt in counts:
                         node_ref, count = counts[key_fmt]

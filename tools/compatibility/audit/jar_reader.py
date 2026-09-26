@@ -14,6 +14,7 @@ import struct
 from typing import Any, Dict, List, Optional, Set, Tuple
 import zipfile
 
+from tools.compatibility.audit.models import ParseDiagnostic
 from tools.compatibility.audit.recipe_parser import ParsedRecipe, parse_recipe_json
 from tools.compatibility.audit.tag_parser import TagRegistry
 from tools.compatibility.profiles import get_profile
@@ -30,6 +31,7 @@ class JarData:
     tag_registry: TagRegistry
     recipes_by_output: Dict[str, List[ParsedRecipe]]
     all_recipes: List[ParsedRecipe]
+    diagnostics: List[ParseDiagnostic] = field(default_factory=list)
 
 
 def compute_file_sha256(path: str) -> str:
@@ -112,6 +114,7 @@ def read_mod_jar(jar_path: str, mod_id: str) -> JarData:
     all_recipes: List[ParsedRecipe] = []
     recipes_by_output: Dict[str, List[ParsedRecipe]] = {}
     model_items: Set[str] = set()
+    diagnostics: List[ParseDiagnostic] = []
 
     with zipfile.ZipFile(jar_path) as z:
         names = z.namelist()
@@ -125,21 +128,50 @@ def read_mod_jar(jar_path: str, mod_id: str) -> JarData:
                 tag_id = f"{domain}:{path}"
                 try:
                     raw_tags[tag_id] = json.loads(z.read(name).decode("utf-8"))
-                except Exception:
-                    pass
+                except Exception as e:
+                    diagnostics.append(
+                        ParseDiagnostic(
+                            source_path=name,
+                            error_type="JSON_DECODE_ERROR",
+                            message=f"Failed to decode tag JSON: {e}",
+                            severity="ERROR"
+                        )
+                    )
 
-        # 2. Parse recipes
+        # 2. Parse recipes (exclude /advancement/ criteria files)
         for name in names:
-            if (name.startswith("data/") and ("/recipe/" in name or "/recipes/" in name)) and name.endswith(".json"):
+            if not name.endswith(".json") or "/advancement/" in name:
+                continue
+            parts = name.split("/")
+            if len(parts) >= 4 and parts[0] == "data" and parts[2] in ("recipe", "recipes"):
                 try:
                     data = json.loads(z.read(name).decode("utf-8"))
-                    recipe = parse_recipe_json(name, data, default_namespace=mod_id)
+                except Exception as e:
+                    diagnostics.append(
+                        ParseDiagnostic(
+                            source_path=name,
+                            error_type="JSON_DECODE_ERROR",
+                            message=f"Failed to decode recipe JSON: {e}",
+                            severity="ERROR"
+                        )
+                    )
+                    continue
+
+                try:
+                    recipe = parse_recipe_json(name, data, default_namespace=mod_id, diagnostics=diagnostics)
                     if recipe:
                         all_recipes.append(recipe)
                         for out_id in recipe.output_items:
                             recipes_by_output.setdefault(out_id, []).append(recipe)
-                except Exception:
-                    pass
+                except Exception as e:
+                    diagnostics.append(
+                        ParseDiagnostic(
+                            source_path=name,
+                            error_type="RECIPE_PARSE_ERROR",
+                            message=f"Failed to parse recipe data: {e}",
+                            severity="ERROR"
+                        )
+                    )
 
         # 3. Discover item models
         model_prefix = f"assets/{mod_id}/models/item/"
@@ -149,37 +181,42 @@ def read_mod_jar(jar_path: str, mod_id: str) -> JarData:
                 model_items.add(f"{mod_id}:{base_name}")
 
         # 4. Extract registered items from bytecode class files
-        # Look for primary Item registry class (e.g. ModItems.class or *registry*Item*.class)
         registry_class_candidates = [
             n for n in names
             if n.endswith(".class") and "$" not in n and "Tag" not in n and ("registry" in n or "init" in n or "item" in n) and ("Items" in n or "Item" in n)
         ]
-        
+
         class_items: Set[str] = set()
         for cls_name in registry_class_candidates:
-            class_bytes = z.read(cls_name)
-            found_strings = extract_strings_from_class_bytecode(class_bytes)
-            items_in_class = {
-                s for s in found_strings
-                if re.match(r"^[a-z0-9_]+$", s) and s not in (mod_id, "minecraft", "c", "id", "values", "tag", "properties", "food", "foodproperties")
-            }
-            # If this class has a substantial set of items matching model items, it's our registry!
-            overlap = items_in_class & {m.split(":", 1)[1] for m in model_items}
-            if len(overlap) >= 20:
-                class_items = {f"{mod_id}:{s}" for s in items_in_class if f"{mod_id}:{s}" in model_items or not model_items}
-                break
+            try:
+                class_bytes = z.read(cls_name)
+                found_strings = extract_strings_from_class_bytecode(class_bytes)
+                items_in_class = {
+                    s for s in found_strings
+                    if re.match(r"^[a-z0-9_]+$", s) and s not in (mod_id, "minecraft", "c", "id", "values", "tag", "properties", "food", "foodproperties")
+                }
+                overlap = items_in_class & {m.split(":", 1)[1] for m in model_items}
+                if len(overlap) >= 20:
+                    class_items = {f"{mod_id}:{s}" for s in items_in_class if f"{mod_id}:{s}" in model_items or not model_items}
+                    break
+            except Exception as e:
+                diagnostics.append(
+                    ParseDiagnostic(
+                        source_path=cls_name,
+                        error_type="BYTECODE_READ_ERROR",
+                        message=f"Failed to read bytecode: {e}",
+                        severity="WARNING"
+                    )
+                )
 
         if class_items:
             discovered_items = class_items
         else:
-            # Fall back to item models
             discovered_items = model_items
 
     tag_registry = TagRegistry(raw_tags)
 
     # 5. Discover edible candidates
-    # Common food tag hierarchies: all tags starting with c:foods or c:drinks,
-    # plus mod-specific meal/snack/sweet/feast/drink tags.
     food_tag_candidates: List[str] = [
         t for t in tag_registry.raw_tags
         if t.startswith("c:foods") or t.startswith("c:drinks")
@@ -199,7 +236,6 @@ def read_mod_jar(jar_path: str, mod_id: str) -> JarData:
             if itm.startswith(f"{mod_id}:"):
                 edible_candidates.add(itm)
 
-    # If edible_candidates is empty (some mods do not use c:foods), discover via food recipes
     if not edible_candidates:
         for out_id, recs in recipes_by_output.items():
             if out_id.startswith(f"{mod_id}:"):
@@ -216,4 +252,5 @@ def read_mod_jar(jar_path: str, mod_id: str) -> JarData:
         tag_registry=tag_registry,
         recipes_by_output=recipes_by_output,
         all_recipes=all_recipes,
+        diagnostics=diagnostics,
     )
