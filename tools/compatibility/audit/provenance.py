@@ -102,12 +102,13 @@ TOOL_TAG_PREFIXES: Tuple[str, ...] = (
 TOOL_TOKENS: Set[str] = {
     "pot", "skillet", "cuttingboard", "pan", "bakeware", "saucepan",
     "roller", "juicer", "grater", "knife", "knives", "shears", "tool",
-    "tools", "mortar", "pestle", "whisk",
+    "tools", "mortar", "pestle", "whisk", "mixingbowl", "grinder",
 }
 
 TOOL_SUFFIXES: Tuple[str, ...] = (
     "potitem", "skilletitem", "bakewareitem", "cuttingboarditem",
     "saucepanitem", "rolleritem", "juiceritem", "grateritem",
+    "mixingbowlitem", "grinderitem",
 )
 
 
@@ -379,7 +380,7 @@ class RecipeProvenanceEngine:
             return self._item_cache[item_id]
 
         path_stack: List[str] = [item_id]
-        res = self._evaluate_item_rec(item_id, path_stack)
+        res = self._evaluate_item_rec(item_id, path_stack, branch_required=True)
 
         recipes = self.recipes_by_output.get(item_id, [])
         has_recipes = len(recipes) > 0
@@ -404,29 +405,59 @@ class RecipeProvenanceEngine:
         is_pure_plant = not res.can_swine and not res.can_meat and not res.can_fish and not has_var and (res.can_plant or (has_recipes and not res.can_swine and not res.can_meat))
 
         evidence: List[AuditEvidence] = []
+        fixed_paths: List[ProvenancePath] = []
         for p in res.paths:
-            if p.relation == "TRANSITIVE":
-                if p.mandatory:
-                    sig = "swine" if is_swine_item_or_tag(p.signal) else ("meat" if is_meat_item_or_tag(p.signal) else p.signal)
-                    kind = EvidenceKind.TRANSITIVE_RECIPE_TAG if p.signal.startswith("#") else EvidenceKind.TRANSITIVE_RECIPE_ITEM
+            is_mand = p.mandatory
+            if is_swine_item_or_tag(p.signal) and var_swine:
+                is_mand = False
+            elif is_meat_item_or_tag(p.signal) and var_meat:
+                is_mand = False
+            elif is_fish_item_or_tag(p.signal) and var_fish:
+                is_mand = False
+
+            fp = ProvenancePath(
+                signal=p.signal,
+                relation=p.relation,
+                mandatory=is_mand,
+                path=p.path,
+            )
+            fixed_paths.append(fp)
+
+            if fp.relation == "TRANSITIVE" or (not fp.mandatory and (is_swine_item_or_tag(fp.signal) or is_meat_item_or_tag(fp.signal) or is_fish_item_or_tag(fp.signal))):
+                sig_type = ""
+                if is_swine_item_or_tag(fp.signal):
+                    sig_type = "swine"
+                elif is_meat_item_or_tag(fp.signal):
+                    sig_type = "meat"
+                elif is_fish_item_or_tag(fp.signal):
+                    sig_type = "fish"
+
+                if sig_type:
+                    kind = (
+                        EvidenceKind.TRANSITIVE_RECIPE_TAG
+                        if fp.signal.startswith("#")
+                        else EvidenceKind.TRANSITIVE_RECIPE_ITEM
+                    )
+                    prefix = "Mandatory" if fp.mandatory else "Alternative"
                     evidence.append(
                         AuditEvidence(
                             kind=kind,
-                            signal=sig,
+                            signal=sig_type,
                             source=item_id,
-                            weight=0.9,
-                            detail=f"Mandatory transitive {sig} provenance: {' -> '.join(p.path)}"
+                            weight=0.9 if fp.mandatory else 0.8,
+                            detail=f"{prefix} transitive {sig_type} provenance: {' -> '.join(fp.path)}",
                         )
                     )
-                evidence.append(
-                    AuditEvidence(
-                        kind=EvidenceKind.PROVENANCE_PATH,
-                        signal=p.signal,
-                        source=item_id,
-                        weight=1.0,
-                        detail=" -> ".join(p.path)
-                    )
+
+            evidence.append(
+                AuditEvidence(
+                    kind=EvidenceKind.PROVENANCE_PATH,
+                    signal=fp.signal,
+                    source=item_id,
+                    weight=1.0,
+                    detail=" -> ".join(fp.path),
                 )
+            )
 
         if var_swine:
             evidence.append(
@@ -449,7 +480,7 @@ class RecipeProvenanceEngine:
                 )
             )
 
-        tree_text = self.format_provenance_tree(item_id, res.paths, has_var)
+        tree_text = self.format_provenance_tree(item_id, fixed_paths, has_var)
 
         prov = ItemProvenance(
             item_id=item_id,
@@ -464,7 +495,7 @@ class RecipeProvenanceEngine:
             has_variable_provenance=var_swine or var_meat or var_fish,
             cycles_detected=self.total_cycles_detected,
             depth_limits_hit=self.total_depth_limits_hit,
-            paths=res.paths,
+            paths=fixed_paths,
             evidence=evidence,
             tree_text=tree_text,
         )
@@ -476,6 +507,7 @@ class RecipeProvenanceEngine:
         self,
         item_id: str,
         path_stack: List[str],
+        branch_required: bool = True,
     ) -> ProvenanceBranchResult:
         """
         Recursively computes provenance for item_id using path_stack.
@@ -496,7 +528,7 @@ class RecipeProvenanceEngine:
                     ProvenancePath(
                         signal=item_id,
                         relation="DIRECT" if len(path_stack) == 1 else "TRANSITIVE",
-                        mandatory=True,
+                        mandatory=branch_required,
                         path=tuple(path_stack),
                     )
                 )
@@ -517,7 +549,9 @@ class RecipeProvenanceEngine:
         recipe_results: List[ProvenanceBranchResult] = []
 
         for recipe in recipes:
-            rec_res = self._evaluate_recipe(recipe, path_stack)
+            num_recipes = len(recipes)
+            rec_required = (num_recipes == 1) and branch_required
+            rec_res = self._evaluate_recipe(recipe, path_stack, rec_required)
             recipe_results.append(rec_res)
 
         # Disjunction (OR) across multiple recipes for this item
@@ -552,6 +586,7 @@ class RecipeProvenanceEngine:
         self,
         recipe: ParsedRecipe,
         path_stack: List[str],
+        recipe_required: bool = True,
     ) -> ProvenanceBranchResult:
         """
         Evaluates a single recipe across all ingredient slots (conjunction / AND).
@@ -564,8 +599,10 @@ class RecipeProvenanceEngine:
                 continue
 
             branch_results: List[ProvenanceBranchResult] = []
+            num_active = len(raw_branches)
             for leaf_id, lineage in raw_branches:
-                b_res = self._evaluate_branch(leaf_id, lineage, path_stack)
+                b_required = (num_active == 1) and recipe_required
+                b_res = self._evaluate_branch(leaf_id, lineage, path_stack, b_required)
                 branch_results.append(b_res)
 
             # Filter out non-consumed tools and containers from dietary constraints
@@ -648,6 +685,7 @@ class RecipeProvenanceEngine:
         leaf_id: str,
         lineage: List[str],
         path_stack: List[str],
+        branch_required: bool = True,
     ) -> ProvenanceBranchResult:
         """
         Evaluates an individual branch alternative (item or tag), recursing if intermediate item.
@@ -695,7 +733,7 @@ class RecipeProvenanceEngine:
             tag_prefix = [x for x in lineage if x.startswith("#")]
             added_steps = tag_prefix + [leaf_id]
             path_stack.extend(added_steps)
-            sub_res = self._evaluate_item_rec(leaf_id, path_stack)
+            sub_res = self._evaluate_item_rec(leaf_id, path_stack, branch_required)
             for _ in range(len(added_steps)):
                 path_stack.pop()
 
@@ -727,7 +765,7 @@ class RecipeProvenanceEngine:
                 ProvenancePath(
                     signal=leaf_id,
                     relation=rel,
-                    mandatory=True,
+                    mandatory=branch_required,
                     path=full_lineage,
                 )
             )
