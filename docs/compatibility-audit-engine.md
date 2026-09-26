@@ -156,7 +156,7 @@ The engine automatically filters out tools and utility containers from ingredien
 Minecraft crafting frequently introduces cycles (e.g. crate packing/unpacking `cabbage <-> cabbage_crate`, pie slicing `apple_pie <-> apple_pie_slice`, cutting `cabbage <-> cabbage_leaf`, and liquid bottling `milk_bucket <-> milk_bottle`):
 - **Cycle Semantics (`PROVENANCE_CYCLE`)**: A cyclic edge is **non-evidentiary / incomplete**, never a safe alternative path. Cyclic branches cannot turn mandatory swine into variable swine. Where all recipes in a JAR are reciprocal conversions (e.g. `cabbage <-> cabbage_crate`), the engine resolves the item to its inherent recognized identity.
 - **Incomplete Provenance Model**: Traversal truncations (depth limits or cycles without safe paths) represent **UNKNOWN**, never proof of safety. If mandatory risk is present, the mandatory risk takes precedence; otherwise, incomplete items safely route to `GENERAL_REVIEW` (review priority 65), never `LIKELY_PLANT_BASED`.
-- **Depth Limits (`PROVENANCE_DEPTH_LIMIT`)**: Bounded by `--max-provenance-depth` (default 8) to prevent runaway execution in deep crafting webs.
+- **Depth Limits (`PROVENANCE_DEPTH_LIMIT`)**: Bounded by `--max-provenance-depth` (default **12**) to prevent runaway execution in deep crafting webs. Depth 12 is the balanced audit depth for production JARs; use `--max-provenance-depth 16` for exhaustive traversal. Increasing depth never changes `UNKNOWN` into assumed-safe behavior.
 - **Per-Item Diagnostics**: `cycles_detected` and `depth_limits_hit` in `ItemProvenance` report per-item counts, while engine-wide totals are recorded in `summary.json`.
 
 ### 6.6 Lattice Propagation & Triage Integration
@@ -175,7 +175,7 @@ python3 -m tools.compatibility.audit.cli \
   --jar /path/to/mod.jar \
   --mod-id <mod_id> \
   --pack <path_to_muslimqol_pack> \
-  --max-provenance-depth 8 \
+  --max-provenance-depth 12 \
   --output build/audit/<mod_id>
 
 # Or via wrapper script
@@ -204,6 +204,18 @@ Output highlights:
   - Classified in pack: 89
   - Missing: 0, Extra: 0, Duplicates: 0, Unknown IDs: 0, Diagnostics: 0
 - **Provenance Graph**: 33 transitive items, 4 variable provenance items, 30 cyclic edges handled, 0 depth limits hit.
+
+### Depth Benchmark (Pam's HarvestCraft 2 Food Core 1.0.4, 180 edible candidates)
+
+Benchmark run on local macOS (Apple Silicon). Illustrates the trade-off between traversal depth, completeness, and runtime.
+
+| Depth | Runtime | Items Incomplete | Depth Sites | Truncations | Notes |
+|------:|--------:|-----------------:|------------:|------------:|-------|
+|     8 |  0.400s |               28 |           3 |          61 | Shallow — misses multi-step flour/dough/bread chains |
+|    12 |  0.394s |                5 |           2 |          10 | **Default** — resolves bread chain; only `flouritem`/`saltitem` jelly-toast branches remain |
+|    16 |  0.379s |                0 |           0 |           0 | Exhaustive — zero incomplete; use only when thorough trace needed |
+
+> Depth cutoff is a **conservative INCOMPLETE state** — never assumed safe. `GENERAL_REVIEW` is assigned to incomplete items with no confirmed risk. Increasing depth never changes `UNKNOWN` into assumed-safe behavior.
 
 ### Generated Artifacts
 All files are generated under `build/audit/<mod_id>/` (automatically gitignored):

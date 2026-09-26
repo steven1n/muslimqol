@@ -644,5 +644,21 @@ class TestRecipeProvenanceGraph(unittest.TestCase):
         self.assertEqual(res.suggestion.category, SuggestionCategory.HIGH_RISK_RESTRICTED)
 
 
+class TestDefaultDepth(unittest.TestCase):
+    """Verifies that the default max_depth for RecipeProvenanceEngine is 12."""
+
+    def test_default_max_depth_is_12(self) -> None:
+        """RecipeProvenanceEngine() with no arguments must default to max_depth == 12."""
+        engine = RecipeProvenanceEngine(
+            tag_registry=TagRegistry(),
+            recipes_by_output={},
+        )
+        self.assertEqual(
+            engine.max_depth,
+            12,
+            "Default provenance depth must be 12 (balanced audit depth per v0.2 spec).",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

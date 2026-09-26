@@ -162,7 +162,7 @@ class EvidenceEngine:
         self,
         tag_registry: Optional[TagRegistry] = None,
         recipes_by_output: Optional[Dict[str, List[ParsedRecipe]]] = None,
-        max_depth: int = 8,
+        max_depth: int = 12,
         provenance_engine: Optional[RecipeProvenanceEngine] = None,
     ):
         self.tag_registry = tag_registry or TagRegistry()

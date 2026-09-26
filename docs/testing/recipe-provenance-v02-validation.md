@@ -46,8 +46,8 @@ while strictly preserving **alternative-choice semantics** (Mandatory vs. Variab
 | **Items with Variable Provenance** | **6** | **5** |
 | **Distinct Cyclic Edges Detected** | **23** | **0** |
 | **Items Encountering Cycles** | **13** | **0** |
-| **Items Genuinely Incomplete** | **0** | **28** (at depth 8) / **5** (at depth 12) |
-| **Depth Limits Hit (Max Depth = 8)** | **0** | **3** |
+| **Items Genuinely Incomplete** | **0** | **28** (depth 8) / **5** (depth 12, default) / **0** (depth 16) |
+| **Depth Limits Hit (Default Max Depth = 12)** | **0** | **2** (at depth 12) |
 | **Curated Pack Clean Status** | **True** (89 / 89 classified) | N/A (Pack not yet built) |
 
 ---
@@ -224,7 +224,7 @@ farmersdelight:apple_pie [VARIABLE]
             └── minecraft:milk_bucket (DAIRY)
 ```
 - **Evaluation**: Apple pie utilizes `pie_crust`, which requires `#c:milk` or `#c:drinks/milk` (resolving via `farmersdelight:milk_bottle` to `minecraft:milk_bucket`). Because consumed dairy is present, `is_pure_plant` is correctly `False`.
-- **Suggestion**: `LIKELY_LOW_RISK_RECIPE` (Review Priority 30).
+- **Suggestion (depth 12 default)**: `AMBIGUOUS_RECIPE` (Review Priority 80) — at depth 12 the `pie_crust → #c:milk` dairy chain is fully traversed, triggering the ambiguous-recipe path. At depth 8 this chain was not fully resolved, yielding the shallower `LIKELY_LOW_RISK_RECIPE`; depth 12 is the more accurate result.
 - **Semantics**: Correctly distinguishes pure plant-based foods from dairy/egg baked goods, adhering strictly to project dietary semantics without hardcoding.
 
 ---
@@ -259,7 +259,7 @@ In Pam's HarvestCraft 2, intermediate culinary chains can be very deep:
 $$\text{wheat} \to \text{flour} \to \text{dough} \to \text{bread} \to \text{toast} \to \text{applejellytoast}$$
 
 ### Depth Limit Mechanism & Incomplete State Routing
-- The `--max-provenance-depth` argument (default **8**) caps recursion depth.
+- The `--max-provenance-depth` argument (default **12**) caps recursion depth.
 - When `len(path_stack) >= max_depth`:
   - Recursion terminates safely.
   - A `ParseDiagnostic` with `error_type="PROVENANCE_DEPTH_LIMIT"` is emitted with the exact path stack.
@@ -267,10 +267,18 @@ $$\text{wheat} \to \text{flour} \to \text{dough} \to \text{bread} \to \text{toas
 - **Honest Incompleteness**: Depth truncation means **UNKNOWN**, never safe non-swine or pure plant.
   - If mandatory risk exists (e.g. `hotdogitem` with required `groundporkitem`), the item remains `mandatory_swine=True` and `HIGH_RISK_RESTRICTED`.
   - If no higher risk exists, incomplete items route to `GENERAL_REVIEW` (review priority 65), never `LIKELY_PLANT_BASED`.
-- **Pam's HarvestCraft 2 Benchmark (Depth 8 vs. 12)**:
-  - At **Depth 8** (default): execution time 0.44s; 3 distinct depth-limit truncation sites (`doughitem`, `flouritem`, `saltitem`) affecting 28 deep grain/composite items.
-  - At **Depth 12**: execution time 0.53s (+0.09s); depth-limit truncation sites reduced to 2 (`flouritem`, `saltitem`) affecting only 5 jelly toast items.
-  - Graph traversal remains linear and sub-second at both depths without exponential expansion.
+- **Pam's HarvestCraft 2 Benchmark (180 edible candidates)**:
+
+| Depth | Runtime | Incomplete Items | Depth Sites | Truncations | Notes |
+|------:|--------:|-----------------:|------------:|------------:|-------|
+|     8 |  0.400s |               28 |           3 |          61 | Shallow — misses flour/dough/bread chains |
+|    12 |  0.394s |                5 |           2 |          10 | **Default** — resolves bread chain; only jelly-toast branches remain |
+|    16 |  0.379s |                0 |           0 |           0 | Exhaustive — zero incomplete |
+
+  - At **depth 12** (default): `doughitem` bread chain fully resolved; 5 jelly-toast items (`applejellytoastitem` and friends) remain incomplete via `flouritem`/`saltitem`.
+  - Raising depth 8→12 also corrects `farmersdelight:apple_pie`: at depth 8 `pie_crust→#c:milk` was not fully traversed (result: `LIKELY_LOW_RISK_RECIPE`); at depth 12 the dairy path is discovered, yielding the more accurate `AMBIGUOUS_RECIPE`.
+  - Depth cutoff is a conservative INCOMPLETE state — increasing depth never changes UNKNOWN into assumed-safe behavior.
+  - Graph traversal remains linear and sub-second at all depths.
 
 ---
 

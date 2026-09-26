@@ -338,7 +338,7 @@ class RecipeProvenanceEngine:
         self,
         tag_registry: TagRegistry,
         recipes_by_output: Dict[str, List[ParsedRecipe]],
-        max_depth: int = 8,
+        max_depth: int = 12,
     ):
         self.tag_registry = tag_registry
         self.recipes_by_output = recipes_by_output

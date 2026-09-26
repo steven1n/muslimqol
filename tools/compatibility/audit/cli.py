@@ -33,7 +33,7 @@ def run_audit(
     mod_id: str,
     pack_dir: Optional[str] = None,
     output_dir: Optional[str] = None,
-    max_provenance_depth: int = 8,
+    max_provenance_depth: int = 12,
 ) -> int:
     """Runs mod audit workflow and writes outputs."""
     if not output_dir:
@@ -193,8 +193,8 @@ def main() -> int:
     parser.add_argument(
         "--max-provenance-depth",
         type=int,
-        default=8,
-        help="Maximum recursion depth for recipe provenance graph traversal (default: 8)",
+        default=12,
+        help="Maximum recursion depth for recipe provenance graph traversal (default: 12; increase for deeper chains)",
     )
 
     args = parser.parse_args()
