@@ -81,13 +81,57 @@ class TestEvidenceEngine(unittest.TestCase):
 
         self.assertEqual(result.suggestion.category, SuggestionCategory.LIKELY_PLANT_BASED)
         self.assertEqual(result.suggestion.confidence, Confidence.HIGH)
-        self.assertEqual(result.suggestion.review_priority, 30)
+        self.assertEqual(result.suggestion.review_priority, 20)
 
     def test_untrusted_halal_claim_on_beef(self):
         result = self.engine.analyze_item("somemod:halal_beef")
         # Halal claim on beef requires slaughter provenance verification
         self.assertEqual(result.suggestion.category, SuggestionCategory.MEAT_PROVENANCE_REQUIRED)
         self.assertTrue(any(c.conflict_type == "UNTRUSTED_RELIGIOUS_CLAIM" for c in result.suggestion.conflicts))
+
+    def test_dairy_egg_recipe(self):
+        recipe_data = {
+            "type": "minecraft:crafting_shapeless",
+            "result": "somemod:sweet_cheesecake",
+            "ingredients": [
+                {"item": "minecraft:milk_bucket"},
+                {"item": "minecraft:egg"},
+                {"item": "minecraft:sugar"}
+            ]
+        }
+        parsed = parse_recipe_json("data/somemod/recipe/sweet_cheesecake.json", recipe_data)
+        result = self.engine.analyze_item("somemod:sweet_cheesecake", recipes=[parsed])
+
+        self.assertEqual(result.suggestion.category, SuggestionCategory.LIKELY_LOW_RISK_RECIPE)
+        self.assertEqual(result.suggestion.confidence, Confidence.HIGH)
+        self.assertEqual(result.suggestion.review_priority, 30)
+
+    def test_fish_recipe(self):
+        recipe_data = {
+            "type": "minecraft:crafting_shapeless",
+            "result": "somemod:fish_soup",
+            "ingredients": [
+                {"item": "minecraft:cod"},
+                {"item": "minecraft:carrot"}
+            ]
+        }
+        parsed = parse_recipe_json("data/somemod/recipe/fish_soup.json", recipe_data)
+        result = self.engine.analyze_item("somemod:fish_soup", recipes=[parsed])
+
+        self.assertEqual(result.suggestion.category, SuggestionCategory.FISH_REVIEW_BASELINE)
+        self.assertEqual(result.suggestion.confidence, Confidence.HIGH)
+        self.assertEqual(result.suggestion.review_priority, 40)
+
+    def test_priority_ordering_audit_urgency(self):
+        # Swine priority > Meat priority > Fish baseline > Low risk recipe / Plant
+        swine_result = self.engine.analyze_item("somemod:pork_chop")
+        meat_result = self.engine.analyze_item("somemod:beef_stew")
+        fish_result = self.engine.analyze_item("somemod:cod_slice")
+        plant_result = self.engine.analyze_item("somemod:apple_salad")
+
+        self.assertGreater(swine_result.suggestion.review_priority, meat_result.suggestion.review_priority)
+        self.assertGreater(meat_result.suggestion.review_priority, fish_result.suggestion.review_priority)
+        self.assertGreater(fish_result.suggestion.review_priority, plant_result.suggestion.review_priority)
 
 
 if __name__ == "__main__":

@@ -132,6 +132,50 @@ class TestNameHeuristics(unittest.TestCase):
         result = self.engine.analyze_item("somemod:squid_pasta")
         self.assertEqual(result.suggestion.category, SuggestionCategory.SEAFOOD_REVIEW)
 
+    def test_chamomile_tea_no_swine_false_positive(self):
+        tokens, ev = analyze_registry_id("farmersdelight:chamomile_tea")
+        self.assertIn("chamomile", tokens)
+        self.assertIn("tea", tokens)
+        self.assertNotIn("ham", tokens)
+        self.assertFalse(any(e.signal == "ham" for e in ev))
+
+        result = self.engine.analyze_item("farmersdelight:chamomile_tea")
+        self.assertEqual(result.suggestion.category, SuggestionCategory.LIKELY_PLANT_BASED)
+        self.assertNotEqual(result.suggestion.category, SuggestionCategory.HIGH_RISK_RESTRICTED)
+
+    def test_hamburger_ambiguous_meat_not_swine(self):
+        tokens, ev = analyze_registry_id("somemod:hamburger")
+        self.assertIn("hamburger", tokens)
+        self.assertNotIn("ham", tokens)
+        self.assertFalse(any(e.signal == "ham" for e in ev))
+
+        result = self.engine.analyze_item("somemod:hamburger")
+        # Hamburger is ambiguous meat, NOT high risk swine
+        self.assertEqual(result.suggestion.category, SuggestionCategory.MEAT_PROVENANCE_REQUIRED)
+        self.assertNotEqual(result.suggestion.category, SuggestionCategory.HIGH_RISK_RESTRICTED)
+
+    def test_dairy_egg_category(self):
+        tokens, ev = analyze_registry_id("somemod:fried_egg")
+        self.assertIn("egg", tokens)
+        result = self.engine.analyze_item("somemod:fried_egg")
+        self.assertEqual(result.suggestion.category, SuggestionCategory.LIKELY_LOW_RISK_RECIPE)
+
+        tokens, ev = analyze_registry_id("somemod:milk_bottle")
+        self.assertIn("milk", tokens)
+        result = self.engine.analyze_item("somemod:milk_bottle")
+        self.assertEqual(result.suggestion.category, SuggestionCategory.LIKELY_LOW_RISK_RECIPE)
+
+    def test_fish_review_baseline_category(self):
+        tokens, ev = analyze_registry_id("somemod:cod_slice")
+        self.assertIn("cod", tokens)
+        result = self.engine.analyze_item("somemod:cod_slice")
+        self.assertEqual(result.suggestion.category, SuggestionCategory.FISH_REVIEW_BASELINE)
+
+        tokens, ev = analyze_registry_id("somemod:salmon_slice")
+        self.assertIn("salmon", tokens)
+        result = self.engine.analyze_item("somemod:salmon_slice")
+        self.assertEqual(result.suggestion.category, SuggestionCategory.FISH_REVIEW_BASELINE)
+
 
 if __name__ == "__main__":
     unittest.main()

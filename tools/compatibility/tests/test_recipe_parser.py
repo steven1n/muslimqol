@@ -107,6 +107,38 @@ class TestRecipeParser(unittest.TestCase):
         result = self.engine.analyze_item("somemod:ratatouille", recipes=[parsed])
         self.assertEqual(result.suggestion.category, SuggestionCategory.LIKELY_PLANT_BASED)
 
+    def test_chamomile_tea_recipe_ingredient_no_swine(self):
+        # Using chamomile_tea in a recipe must not trigger swine signals
+        recipe_data = {
+            "type": "minecraft:crafting_shapeless",
+            "result": "somemod:herbal_infusion",
+            "ingredients": [
+                {"item": "farmersdelight:chamomile_tea"},
+                {"item": "minecraft:honey_bottle"}
+            ]
+        }
+        parsed = parse_recipe_json("data/somemod/recipe/herbal_infusion.json", recipe_data)
+        result = self.engine.analyze_item("somemod:herbal_infusion", recipes=[parsed])
+        self.assertNotEqual(result.suggestion.category, SuggestionCategory.HIGH_RISK_RESTRICTED)
+
+    def test_recipe_parser_diagnostics(self):
+        diagnostics = []
+        # Malformed recipe with invalid ingredient type
+        recipe_data = {
+            "type": "minecraft:crafting_shapeless",
+            "result": "somemod:broken_food",
+            "ingredients": [12345]  # Invalid non-dict/non-string ingredient
+        }
+        parsed = parse_recipe_json(
+            "data/somemod/recipe/broken_food.json",
+            recipe_data,
+            diagnostics=diagnostics
+        )
+        self.assertIsNotNone(parsed)
+        self.assertTrue(len(diagnostics) > 0)
+        self.assertEqual(diagnostics[0].error_type, "MALFORMED_INGREDIENT")
+        self.assertEqual(diagnostics[0].severity, "WARNING")
+
 
 if __name__ == "__main__":
     unittest.main()
