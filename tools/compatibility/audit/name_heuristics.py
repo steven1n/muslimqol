@@ -51,6 +51,7 @@ MEAT_PROVENANCE: Set[str] = {
 AMBIGUOUS_MEAT: Set[str] = {
     "sausage",
     "burger",
+    "hamburger",
     "meatball",
     "patty",
     "kebab",
@@ -76,6 +77,7 @@ PLANT_HINTS: Set[str] = {
     "rice",
     "wheat",
     "berry",
+    "berries",
     "melon",
     "potato",
     "beetroot",
@@ -85,35 +87,56 @@ PLANT_HINTS: Set[str] = {
     "cookie",
     "salad",
     "tea",
+    "chamomile",
     "coffee",
     "seed",
+    "seeds",
     "grain",
     "fruit",
     "vegetable",
+    "vegetables",
     "corn",
     "bean",
+    "beans",
     "pasta",
     "noodle",
+    "noodles",
     "sugar",
     "cocoa",
     "chocolate",
     "pumpkin",
     "kelp",
     "tofu",
+    "soy",
+    "soybean",
+    "soybeans",
     "garlic",
     "ginger",
     "lettuce",
     "cucumber",
     "eggplant",
     "pea",
+    "peas",
     "pepper",
+    "peppers",
     "radish",
     "spinach",
     "dough",
     "crust",
+    "vanilla",
+    "honey",
+}
+
+DAIRY_EGG_HINTS: Set[str] = {
+    "milk",
+    "egg",
+    "eggs",
+    "cheese",
     "cheesecake",
     "custard",
-    "honey",
+    "butter",
+    "cream",
+    "yogurt",
 }
 
 FISH_HINTS: Set[str] = {
@@ -211,22 +234,12 @@ def tokenize_registry_path(path: str) -> List[str]:
     # First convert camelCase to snake_case
     s1 = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', path)
     s2 = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
-    
+
     # Replace hyphens and dots with underscores
     normalized = re.sub(r'[-.]+', '_', s2)
-    
-    # Check for compound phrases like non_alcoholic or plant_based
-    compounds = {
-        "non_alcoholic": "non_alcoholic",
-        "plant_based": "plant_based",
-    }
-    for comp in compounds:
-        if comp in normalized:
-            # We can preserve it or let split handle it, but keep compound recognizable
-            pass
 
     raw_tokens = [t for t in normalized.split('_') if t]
-    
+
     # Re-stitch 'non' + 'alcoholic' into 'non_alcoholic' if adjacent
     tokens: List[str] = []
     i = 0
@@ -240,7 +253,25 @@ def tokenize_registry_path(path: str) -> List[str]:
         else:
             tokens.append(raw_tokens[i])
             i += 1
-            
+
+    return tokens
+
+
+def tokenize_identifier(identifier: str) -> List[str]:
+    """
+    Tokenizes any Minecraft identifier or tag (e.g. 'c:foods/raw_pork', 'farmersdelight:chamomile_tea').
+    Splits by namespace, slashes, underscores, hyphens, and camelCase.
+    """
+    clean = identifier[1:] if identifier.startswith("#") else identifier
+    if ":" in clean:
+        _, path = clean.split(":", 1)
+    else:
+        path = clean
+
+    subpaths = path.split("/")
+    tokens: List[str] = []
+    for sp in subpaths:
+        tokens.extend(tokenize_registry_path(sp))
     return tokens
 
 
@@ -258,14 +289,9 @@ def analyze_registry_id(registry_id: str) -> Tuple[List[str], List[AuditEvidence
     evidence: List[AuditEvidence] = []
     source = f"registry_id:{registry_id}"
 
-    has_exception = False
-    exception_tokens = []
-    
     # Scan for exceptions / qualifiers first
     for token in tokens:
         if token in NAME_EXCEPTIONS:
-            has_exception = True
-            exception_tokens.append(token)
             evidence.append(
                 AuditEvidence(
                     kind=EvidenceKind.NAME_EXCEPTION,
@@ -358,6 +384,16 @@ def analyze_registry_id(registry_id: str) -> Tuple[List[str], List[AuditEvidence
                     detail=f"Ambiguous processed meat keyword '{token}' (requires ingredient verification)"
                 )
             )
+        elif token in DAIRY_EGG_HINTS:
+            evidence.append(
+                AuditEvidence(
+                    kind=EvidenceKind.NAME_KEYWORD,
+                    signal=token,
+                    source=source,
+                    weight=0.6,
+                    detail=f"Dairy/egg keyword '{token}' (permissible low-risk baseline)"
+                )
+            )
         elif token in PLANT_HINTS:
             evidence.append(
                 AuditEvidence(
@@ -375,7 +411,7 @@ def analyze_registry_id(registry_id: str) -> Tuple[List[str], List[AuditEvidence
                     signal=token,
                     source=source,
                     weight=0.8,
-                    detail=f"Fish keyword '{token}' (generally permissible seafood signal)"
+                    detail=f"Fish keyword '{token}' (scaled fish review baseline)"
                 )
             )
         elif token in SEAFOOD_REVIEW:

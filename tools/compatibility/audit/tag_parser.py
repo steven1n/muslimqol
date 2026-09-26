@@ -2,56 +2,27 @@
 Minecraft and NeoForge Tag Parser and Resolver.
 
 Loads item tags from data pack hierarchies, resolves tag inclusions (#tag),
-and maps items to tags and tags to items.
+and maps items to tags and tags to items using token-safe semantic matching.
 """
 
 from typing import Dict, List, Optional, Set, Tuple
 
+from tools.compatibility.audit.name_heuristics import (
+    AMBIGUOUS_MEAT,
+    DAIRY_EGG_HINTS,
+    FISH_HINTS,
+    HIGH_RISK_SWINE,
+    MEAT_PROVENANCE,
+    PLANT_HINTS,
+    SEAFOOD_REVIEW,
+    SWINE_ASSOCIATED,
+    tokenize_identifier,
+)
 
-SWINE_TAG_PATTERNS = {
-    "c:foods/raw_pork",
-    "c:foods/cooked_pork",
-    "c:foods/raw_bacon",
-    "c:foods/cooked_bacon",
-    "c:foods/pork",
-    "c:foods/bacon",
-}
 
-MEAT_TAG_PATTERNS = {
-    "c:foods/raw_meat",
-    "c:foods/cooked_meat",
-    "c:foods/raw_beef",
-    "c:foods/cooked_beef",
-    "c:foods/raw_chicken",
-    "c:foods/cooked_chicken",
-    "c:foods/raw_mutton",
-    "c:foods/cooked_mutton",
-    "c:foods/meat",
-}
-
-FISH_TAG_PATTERNS = {
-    "c:foods/safe_raw_fish",
-    "c:foods/safe_cooked_fish",
-    "c:foods/raw_fish",
-    "c:foods/cooked_fish",
-    "c:foods/raw_cod",
-    "c:foods/cooked_cod",
-    "c:foods/raw_salmon",
-    "c:foods/cooked_salmon",
-    "minecraft:fishes",
-}
-
-PLANT_TAG_PATTERNS = {
-    "c:foods/vegetable",
-    "c:foods/leafy_green",
-    "c:foods/dough",
-    "c:foods/pasta",
-    "c:crops",
-    "c:fruits",
-    "c:vegetables",
-    "c:berries",
-    "c:mushrooms",
-    "c:grain",
+FEED_ANIMAL_TOKENS = {
+    "pig", "rabbit", "chicken", "parrot", "cat", "ocelot", "wolf", "strider",
+    "fox", "cow", "sheep", "horse", "dog"
 }
 
 
@@ -73,7 +44,6 @@ class TagRegistry:
 
     def resolve_tag(self, tag_id: str, visited: Optional[Set[str]] = None) -> Set[str]:
         """Recursively resolves all item IDs contained in tag_id."""
-        # Strip leading '#' if present
         clean_tag = tag_id[1:] if tag_id.startswith("#") else tag_id
         if clean_tag in self._resolved_cache:
             return self._resolved_cache[clean_tag]
@@ -92,7 +62,6 @@ class TagRegistry:
         values = tag_data.get("values", [])
         for entry in values:
             if isinstance(entry, dict):
-                # May contain 'id' and 'required'
                 entry_id = entry.get("id", "")
             else:
                 entry_id = str(entry)
@@ -109,7 +78,6 @@ class TagRegistry:
     def get_tags_for_item(self, item_id: str) -> Set[str]:
         """Returns all tag IDs containing item_id."""
         if not self._item_to_tags:
-            # Build inverse index
             for tag_id in self.raw_tags:
                 contained = self.resolve_tag(tag_id)
                 for item in contained:
@@ -135,20 +103,37 @@ class TagRegistry:
 
     def is_swine_signal(self, tag_id: str) -> bool:
         clean = tag_id[1:] if tag_id.startswith("#") else tag_id
-        if clean in self.ANIMAL_FEED_TAGS or clean.endswith("_food"):
+        if clean in self.ANIMAL_FEED_TAGS:
             return False
-        return any(swine in clean for swine in ("pork", "bacon", "ham", "lard", "swine"))
+        tokens = set(tokenize_identifier(clean))
+        if "food" in tokens and (tokens & FEED_ANIMAL_TOKENS):
+            return False
+        return bool(tokens & HIGH_RISK_SWINE or tokens & SWINE_ASSOCIATED)
 
     def is_meat_signal(self, tag_id: str) -> bool:
         clean = tag_id[1:] if tag_id.startswith("#") else tag_id
-        if clean in self.ANIMAL_FEED_TAGS or clean.endswith("_food") or clean == "origins:meat":
+        if clean in self.ANIMAL_FEED_TAGS or clean == "origins:meat":
             return False
-        return any(meat in clean for meat in ("beef", "chicken", "mutton", "lamb", "rabbit", "meat"))
+        if self.is_fish_signal(tag_id):
+            return False
+        tokens = set(tokenize_identifier(clean))
+        if "food" in tokens and (tokens & FEED_ANIMAL_TOKENS):
+            return False
+        return bool(tokens & MEAT_PROVENANCE or tokens & AMBIGUOUS_MEAT)
 
     def is_fish_signal(self, tag_id: str) -> bool:
         clean = tag_id[1:] if tag_id.startswith("#") else tag_id
-        return any(fish in clean for fish in ("fish", "cod", "salmon", "tuna"))
+        if clean in self.ANIMAL_FEED_TAGS:
+            return False
+        tokens = set(tokenize_identifier(clean))
+        return bool(tokens & FISH_HINTS)
 
     def is_seafood_review_signal(self, tag_id: str) -> bool:
         clean = tag_id[1:] if tag_id.startswith("#") else tag_id
-        return any(sf in clean for sf in ("squid", "octopus", "crab", "shrimp", "prawn", "lobster", "clam"))
+        tokens = set(tokenize_identifier(clean))
+        return bool(tokens & SEAFOOD_REVIEW or "ink_sac" in tokens)
+
+    def is_dairy_egg_signal(self, tag_id: str) -> bool:
+        clean = tag_id[1:] if tag_id.startswith("#") else tag_id
+        tokens = set(tokenize_identifier(clean))
+        return bool(tokens & DAIRY_EGG_HINTS)
