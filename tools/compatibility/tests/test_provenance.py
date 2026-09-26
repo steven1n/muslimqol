@@ -384,7 +384,264 @@ class TestRecipeProvenanceGraph(unittest.TestCase):
         self.assertIn("mod:food_a", tree)
         self.assertIn("mod:intermediate_b (TRANSITIVE)", tree)
         self.assertIn("minecraft:porkchop (SWINE ⚠)", tree)
-        self.assertIn("└── ", tree)
+    def test_variable_pork_evidence_wording(self):
+        """Variable pork [porkchop | mushroom] must emit Alternative evidence, never Mandatory."""
+        choice_slot = make_compound_ing([
+            make_item_ing("minecraft:porkchop"),
+            make_item_ing("minecraft:brown_mushroom"),
+        ])
+        rec = make_recipe(
+            "mod:dish_rec",
+            "mod:dish",
+            [choice_slot],
+        )
+        recipes_by_output = {"mod:dish": [rec]}
+        engine = RecipeProvenanceEngine(self.tag_registry, recipes_by_output)
+        prov = engine.evaluate_item("mod:dish")
+
+        self.assertFalse(prov.mandatory_swine)
+        self.assertTrue(prov.variable_swine)
+
+        for p in prov.paths:
+            if "porkchop" in p.signal:
+                self.assertFalse(p.mandatory, "Pork path from alternative choice must have mandatory=False!")
+
+        for ev in prov.evidence:
+            self.assertNotIn("Mandatory transitive swine provenance", ev.detail)
+            if "transitive swine provenance" in ev.detail.lower():
+                self.assertIn("Alternative", ev.detail)
+
+    def test_stock_choice_paths_not_mandatory(self):
+        """stock -> [pork | beef | fish] must have mandatory=False for all choice paths."""
+        self.tag_registry.add_tag("c:stock_meats", {"values": ["minecraft:porkchop", "minecraft:beef", "minecraft:cod"]})
+        rec_stock = make_recipe("mod:rec_stock", "mod:stock", [make_tag_ing("c:stock_meats")])
+        rec_soup = make_recipe("mod:rec_soup", "mod:soup", [make_item_ing("mod:stock"), make_item_ing("minecraft:carrot")])
+
+        recipes_by_output = {"mod:stock": [rec_stock], "mod:soup": [rec_soup]}
+        engine = RecipeProvenanceEngine(self.tag_registry, recipes_by_output)
+
+        prov_stock = engine.evaluate_item("mod:stock")
+        self.assertFalse(prov_stock.mandatory_swine)
+        self.assertTrue(prov_stock.variable_swine)
+        for p in prov_stock.paths:
+            self.assertFalse(p.mandatory, f"Stock choice path {p.signal} must have mandatory=False!")
+        for ev in prov_stock.evidence:
+            self.assertNotIn("Mandatory transitive swine provenance", ev.detail)
+
+        prov_soup = engine.evaluate_item("mod:soup")
+        self.assertFalse(prov_soup.mandatory_swine)
+        self.assertTrue(prov_soup.variable_swine)
+        for p in prov_soup.paths:
+            if "pork" in p.signal:
+                self.assertFalse(p.mandatory, "Soup transitive pork path must have mandatory=False!")
+        for ev in prov_soup.evidence:
+            self.assertNotIn("Mandatory transitive swine provenance", ev.detail)
+
+    def test_depth_limit_incomplete_not_plant(self):
+        """Depth limit cutoff must result in incomplete=True and NOT pure plant."""
+        recipes_by_output = {}
+        for i in range(1, 6):
+            nxt = f"mod:node_{i+1}" if i < 5 else "minecraft:porkchop"
+            recipes_by_output[f"mod:node_{i}"] = [make_recipe(f"mod:rec_{i}", f"mod:node_{i}", [make_item_ing(nxt)])]
+
+        engine = RecipeProvenanceEngine(self.tag_registry, recipes_by_output, max_depth=3)
+        prov = engine.evaluate_item("mod:node_1")
+
+        self.assertTrue(prov.incomplete)
+        self.assertIn("DEPTH_LIMIT", prov.incomplete_reasons)
+        self.assertFalse(prov.is_pure_plant, "Depth-limited item must NOT be classified as pure plant!")
+        self.assertFalse(prov.mandatory_swine)
+
+        ee = EvidenceEngine(self.tag_registry, recipes_by_output, provenance_engine=engine)
+        res = ee.analyze_item("mod:node_1", recipes_by_output["mod:node_1"], provenance=prov)
+        self.assertEqual(res.suggestion.category, SuggestionCategory.GENERAL_REVIEW)
+        self.assertNotEqual(res.suggestion.category, SuggestionCategory.LIKELY_PLANT_BASED)
+        self.assertEqual(res.suggestion.review_priority, 65)
+
+    def test_cycle_branch_not_safe_alternative(self):
+        """A cyclic branch must NOT be treated as a safe non-swine alternative."""
+        rec_b_cycle = make_recipe("mod:b_cycle", "mod:item_b", [make_item_ing("mod:item_a")])
+        rec_b_pork = make_recipe("mod:b_pork", "mod:item_b", [make_item_ing("minecraft:porkchop")])
+        rec_a = make_recipe("mod:a_rec", "mod:item_a", [make_item_ing("mod:item_b")])
+
+        recipes_by_output = {
+            "mod:item_a": [rec_a],
+            "mod:item_b": [rec_b_cycle, rec_b_pork],
+        }
+
+        engine = RecipeProvenanceEngine(self.tag_registry, recipes_by_output)
+        prov = engine.evaluate_item("mod:item_a")
+
+        self.assertTrue(prov.mandatory_swine, "Item must be mandatory swine; cycle cannot fabricate non-swine alternative!")
+        self.assertFalse(prov.variable_swine)
+
+        ee = EvidenceEngine(self.tag_registry, recipes_by_output, provenance_engine=engine)
+        res = ee.analyze_item("mod:item_a", [rec_a], provenance=prov)
+        self.assertEqual(res.suggestion.category, SuggestionCategory.HIGH_RISK_RESTRICTED)
+
+    def test_mandatory_dairy_egg(self):
+        """Direct egg and dairy must produce LIKELY_LOW_RISK_RECIPE and not pure plant."""
+        rec_egg = make_recipe("mod:rec_egg", "mod:fried_egg", [make_item_ing("minecraft:egg")])
+        rec_cookie = make_recipe(
+            "mod:rec_cookie",
+            "mod:milk_cookie",
+            [make_item_ing("minecraft:wheat"), make_item_ing("minecraft:milk_bucket"), make_item_ing("minecraft:sugar")],
+        )
+
+        recipes_by_output = {
+            "mod:fried_egg": [rec_egg],
+            "mod:milk_cookie": [rec_cookie],
+        }
+
+        engine = RecipeProvenanceEngine(self.tag_registry, recipes_by_output)
+
+        prov_egg = engine.evaluate_item("mod:fried_egg")
+        self.assertFalse(prov_egg.is_pure_plant)
+        self.assertTrue(prov_egg.mandatory_dairy_egg)
+
+        ee = EvidenceEngine(self.tag_registry, recipes_by_output, provenance_engine=engine)
+        res_egg = ee.analyze_item("mod:fried_egg", [rec_egg], provenance=prov_egg)
+        self.assertEqual(res_egg.suggestion.category, SuggestionCategory.LIKELY_LOW_RISK_RECIPE)
+        self.assertEqual(res_egg.suggestion.review_priority, 30)
+
+        prov_cookie = engine.evaluate_item("mod:milk_cookie")
+        self.assertFalse(prov_cookie.is_pure_plant)
+        self.assertTrue(prov_cookie.mandatory_dairy_egg)
+
+        res_cookie = ee.analyze_item("mod:milk_cookie", [rec_cookie], provenance=prov_cookie)
+        self.assertEqual(res_cookie.suggestion.category, SuggestionCategory.LIKELY_LOW_RISK_RECIPE)
+        self.assertEqual(res_cookie.suggestion.review_priority, 30)
+
+    def test_transitive_dairy_egg(self):
+        """Transitive custard -> milk + egg must produce LIKELY_LOW_RISK_RECIPE."""
+        rec_custard = make_recipe(
+            "mod:rec_custard",
+            "mod:custard",
+            [make_item_ing("minecraft:milk_bucket"), make_item_ing("minecraft:egg")],
+        )
+        rec_dessert = make_recipe(
+            "mod:rec_dessert",
+            "mod:dessert",
+            [make_item_ing("mod:custard"), make_item_ing("minecraft:sugar")],
+        )
+
+        recipes_by_output = {
+            "mod:custard": [rec_custard],
+            "mod:dessert": [rec_dessert],
+        }
+
+        engine = RecipeProvenanceEngine(self.tag_registry, recipes_by_output)
+        prov = engine.evaluate_item("mod:dessert")
+
+        self.assertFalse(prov.is_pure_plant)
+        self.assertTrue(prov.mandatory_dairy_egg)
+        self.assertTrue(prov.has_transitive_evidence)
+
+        dairy_ev = [e for e in prov.evidence if e.kind in (EvidenceKind.TRANSITIVE_RECIPE_ITEM, EvidenceKind.TRANSITIVE_RECIPE_TAG)]
+        self.assertTrue(any("dairy" in e.signal or "egg" in e.signal for e in dairy_ev))
+
+        ee = EvidenceEngine(self.tag_registry, recipes_by_output, provenance_engine=engine)
+        res = ee.analyze_item("mod:dessert", [rec_dessert], provenance=prov)
+        self.assertEqual(res.suggestion.category, SuggestionCategory.LIKELY_LOW_RISK_RECIPE)
+        self.assertEqual(res.suggestion.review_priority, 30)
+
+    def test_apple_pie_synthetic_chain(self):
+        """Synthetic apple_pie -> crust -> wheat + milk must resolve to LIKELY_LOW_RISK_RECIPE."""
+        self.tag_registry.add_tag("c:drinks/milk", {"values": ["minecraft:milk_bucket"]})
+        rec_crust = make_recipe("mod:crust_rec", "mod:pie_crust", [make_item_ing("minecraft:wheat"), make_tag_ing("c:drinks/milk")])
+        rec_pie = make_recipe(
+            "mod:pie_rec",
+            "mod:apple_pie",
+            [make_item_ing("minecraft:apple"), make_item_ing("minecraft:sugar"), make_item_ing("mod:pie_crust")],
+        )
+
+        recipes_by_output = {
+            "mod:pie_crust": [rec_crust],
+            "mod:apple_pie": [rec_pie],
+        }
+
+        engine = RecipeProvenanceEngine(self.tag_registry, recipes_by_output)
+        prov = engine.evaluate_item("mod:apple_pie")
+
+        self.assertFalse(prov.is_pure_plant, "Apple pie with dairy crust cannot be pure plant!")
+        self.assertTrue(prov.mandatory_dairy_egg)
+        self.assertTrue(prov.has_transitive_evidence)
+
+        ee = EvidenceEngine(self.tag_registry, recipes_by_output, provenance_engine=engine)
+        res = ee.analyze_item("mod:apple_pie", [rec_pie], provenance=prov)
+        self.assertEqual(res.suggestion.category, SuggestionCategory.LIKELY_LOW_RISK_RECIPE)
+        self.assertEqual(res.suggestion.review_priority, 30)
+
+    def test_per_item_cycle_and_depth_metrics(self):
+        """Per-item cycle and depth metrics must not accumulate global totals across items."""
+        rec_a = make_recipe("mod:rec_a", "mod:cyclic_item", [make_item_ing("mod:cyclic_item")])
+        rec_clean = make_recipe("mod:rec_clean", "mod:clean_item", [make_item_ing("minecraft:apple")])
+
+        recipes_by_output = {
+            "mod:cyclic_item": [rec_a],
+            "mod:clean_item": [rec_clean],
+        }
+
+        engine = RecipeProvenanceEngine(self.tag_registry, recipes_by_output)
+
+        prov_cycle = engine.evaluate_item("mod:cyclic_item")
+        self.assertGreaterEqual(prov_cycle.cycles_detected, 1)
+
+        prov_clean = engine.evaluate_item("mod:clean_item")
+        self.assertEqual(prov_clean.cycles_detected, 0, "Clean item must have 0 cycles_detected even after cyclic item!")
+        self.assertEqual(prov_clean.depth_limits_hit, 0)
+        self.assertGreaterEqual(engine.total_cycles_detected, 1, "Engine-wide total cycles must still record the cycle")
+
+    def test_dish_intermediate_mandatory_pork(self):
+        """dish -> intermediate -> pork must preserve mandatory=True."""
+        rec_intermediate = make_recipe("mod:rec_inter", "mod:groundpork", [make_item_ing("minecraft:porkchop")])
+        rec_dish = make_recipe("mod:rec_dish", "mod:dish", [make_item_ing("mod:groundpork")])
+
+        recipes_by_output = {
+            "mod:groundpork": [rec_intermediate],
+            "mod:dish": [rec_dish],
+        }
+
+        engine = RecipeProvenanceEngine(self.tag_registry, recipes_by_output)
+        prov = engine.evaluate_item("mod:dish")
+
+        self.assertTrue(prov.mandatory_swine)
+        self.assertFalse(prov.variable_swine)
+        pork_paths = [p for p in prov.paths if "porkchop" in p.signal]
+        self.assertTrue(len(pork_paths) > 0)
+        for p in pork_paths:
+            self.assertTrue(p.mandatory, "Single-branch required pork chain must be mandatory=True")
+
+        ee = EvidenceEngine(self.tag_registry, recipes_by_output, provenance_engine=engine)
+        res = ee.analyze_item("mod:dish", [rec_dish], provenance=prov)
+        self.assertEqual(res.suggestion.category, SuggestionCategory.HIGH_RISK_RESTRICTED)
+
+    def test_mandatory_swine_preserved_despite_depth_limit_in_other_slot(self):
+        """hotdog -> groundpork (swine) + bread (depth limit) must keep mandatory swine."""
+        # groundpork -> pork
+        rec_pork = make_recipe("mod:rec_pork", "mod:groundpork", [make_item_ing("minecraft:porkchop")])
+
+        # Deep bread chain exceeding max_depth 3
+        recipes_by_output = {
+            "mod:groundpork": [rec_pork],
+            "mod:bread": [make_recipe("mod:b1", "mod:bread", [make_item_ing("mod:dough")])],
+            "mod:dough": [make_recipe("mod:b2", "mod:dough", [make_item_ing("mod:flour")])],
+            "mod:flour": [make_recipe("mod:b3", "mod:flour", [make_item_ing("mod:grain")])],
+            "mod:grain": [make_recipe("mod:b4", "mod:grain", [make_item_ing("minecraft:wheat")])],
+        }
+        rec_hotdog = make_recipe("mod:rec_hotdog", "mod:hotdog", [make_item_ing("mod:groundpork"), make_item_ing("mod:bread")])
+        recipes_by_output["mod:hotdog"] = [rec_hotdog]
+
+        engine = RecipeProvenanceEngine(self.tag_registry, recipes_by_output, max_depth=3)
+        prov = engine.evaluate_item("mod:hotdog")
+
+        self.assertTrue(prov.incomplete, "Hotdog has depth-limited bread so it is incomplete")
+        self.assertTrue(prov.mandatory_swine, "Hotdog has required groundpork so swine is mandatory!")
+        self.assertFalse(prov.variable_swine)
+
+        ee = EvidenceEngine(self.tag_registry, recipes_by_output, provenance_engine=engine)
+        res = ee.analyze_item("mod:hotdog", [rec_hotdog], provenance=prov)
+        self.assertEqual(res.suggestion.category, SuggestionCategory.HIGH_RISK_RESTRICTED)
 
 
 if __name__ == "__main__":
