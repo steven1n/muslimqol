@@ -4,6 +4,8 @@
 > **The audit engine does not determine religious rulings and does not automatically publish MuslimQoL food classifications.**
 >
 > The Compatibility Audit Engine is an offline, deterministic diagnostic tool designed to help human auditors inspect third-party food mod JARs, discover items and recipes, flag ambiguities, and validate curated compatibility packs. All outputs are strictly diagnostic hints and evidence facts.
+>
+> **Review Priority Semantics**: The numeric priority scale (10–100) reflects **audit urgency and review triage order**, NOT theological severity.
 
 ---
 
@@ -15,11 +17,12 @@ Third-Party Mod JAR
         ▼
 Compatibility Audit Engine (Python, offline & deterministic)
   ├── 1. Registry Bytecode & Model Extraction
-  ├── 2. Tag Hierarchy Resolution
+  ├── 2. Tag Hierarchy Resolution (Token-Safe Matching)
   ├── 3. Nested Recipe Traversal (Compound / Difference)
   ├── 4. Tokenization & Keyword Heuristics
   ├── 5. Evidence Conflict & Divergence Diagnostics
-  └── 6. Pack Validation against Curated JSONs
+  ├── 6. Parser Diagnostics & Error Reporting
+  └── 7. Pack Validation against Curated JSONs (Clean & Unknown ID Checks)
         │
         ▼
 Diagnostic Reports (`summary.json`, `evidence.json`, `review.md`)
@@ -37,19 +40,20 @@ Runtime Resolver (`USER_OVERRIDE > DATAPACK > ITEM_TAG > BUILTIN > UNKNOWN`)
 The runtime Minecraft / NeoForge architecture is completely decoupled from the audit engine:
 - The engine runs offline in Python and does not introduce any runtime dependencies.
 - Production Java code (`FoodClassifier`, `FoodCompatibilityManager`, `FoodClassificationRegistry`) remains unchanged.
-- Heuristic suggestions (`HIGH_RISK_RESTRICTED`, `MEAT_PROVENANCE_REQUIRED`, `LIKELY_PLANT_BASED`, `SEAFOOD_REVIEW`, `AMBIGUOUS_RECIPE`, `GENERAL_REVIEW`, `NO_SIGNAL`) are diagnostic categories, completely distinct from runtime `FoodStatus` (`HALAL`, `RESTRICTED`, `DOUBTFUL`, `UNKNOWN`).
+- Heuristic suggestions (`HIGH_RISK_RESTRICTED`, `AMBIGUOUS_RECIPE`, `MEAT_PROVENANCE_REQUIRED`, `SEAFOOD_REVIEW`, `FISH_REVIEW_BASELINE`, `LIKELY_LOW_RISK_RECIPE`, `LIKELY_PLANT_BASED`, `GENERAL_REVIEW`, `NO_SIGNAL`) are diagnostic categories, completely distinct from runtime `FoodStatus` (`HALAL`, `RESTRICTED`, `DOUBTFUL`, `UNKNOWN`).
 
 ---
 
 ## 2. What Heuristics Do and Do NOT Do
 
 ### What Heuristics Do
-- **Deterministic Tokenization**: Splits registry ID paths into canonical tokens across `snake_case`, `kebab-case`, `camelCase`, and compound phrases.
+- **Token-Safe Semantic Matching**: Splits registry ID paths and tag names into canonical tokens, eliminating substring false positives (e.g. `chamomile_tea` and `hamburger` do not trigger `ham` swine signals).
 - **Recipe Traversal**: Recursively parses vanilla crafting, smelting, smoking, and NeoForge compound (`neoforge:compound`) and difference (`neoforge:difference`) structures.
 - **Evidence Fact Assembly**: Gathers objective facts (`NAME_KEYWORD`, `NAME_EXCEPTION`, `RECIPE_ITEM`, `RECIPE_TAG`, `RECIPE_VARIABLE`, `ITEM_TAG`).
+- **Semantic Separation**: Distinguishes pure plant-based foods (`LIKELY_PLANT_BASED`) from dairy/egg composites (`LIKELY_LOW_RISK_RECIPE`) and scaled fish (`FISH_REVIEW_BASELINE`).
 - **Conflict Detection**: Detects and highlights contradictions between name suggestions and ingredient compositions.
-- **Prioritized Human Review**: Assigns a non-religious `review_priority` (10 to 100) to order items for auditor inspection.
-- **Pack Verification**: Compares discovered candidate items against declared MuslimQoL pack rules to identify missing or extra items.
+- **Parser Diagnostics**: Emits structured `ParseDiagnostic` objects for corrupted JSONs, malformed recipes, or unknown tags.
+- **Pack Verification**: Compares discovered candidate items against declared MuslimQoL pack rules to identify missing, extra, duplicate, or unknown registry IDs, computing a boolean `clean` indicator.
 
 ### What Heuristics Do NOT Do
 - **Never publish religious classifications**: Output suggestions never write or alter production classification JSONs automatically.
@@ -59,31 +63,31 @@ The runtime Minecraft / NeoForge architecture is completely decoupled from the a
 
 ---
 
-## 3. The Adversarial-Name Problem
+## 3. The Adversarial-Name Problem & Substring Traps
 
 > **Registry names are hints supplied by mod authors, not trusted ingredient provenance.**
 
 In Minecraft modding, item registry IDs reflect developer naming preferences, cultural idioms, or fantasy lore rather than verifiable ingredient lists. Auditors face four major categories of name deception:
 
-1. **Adversarial / Malicious Names (`halal_pork`)**:
+1. **Substring Collisions (Solved by Token-Safe Matching)**:
+   - Naive string matching (`"ham" in item_id`) causes severe false positives:
+     - `chamomile_tea` contains `"ham"`, but its tokens are `["chamomile", "tea"]`.
+     - `hamburger` contains `"ham"`, but its token is `["hamburger"]` (an ambiguous processed meat, not pork).
+   - The engine uses `tokenize_identifier()` across namespaces, slashes, underscores, and camelCase to prevent substring entrapment.
+
+2. **Adversarial / Malicious Names (`halal_pork`)**:
    - A mod author might name an item `evilmod:halal_pork`.
    - Naive string matching or self-description trusting would mark it permissible.
    - The engine flags `halal` as `UNTRUSTED_SELF_DESCRIPTION` and surfaces an `UNTRUSTED_RELIGIOUS_CLAIM` conflict, keeping the item prioritized at `HIGH_RISK_RESTRICTED`.
 
-2. **Innocent Names Concealing Forbidden Ingredients (`grandmas_stew`, `pumpkin_soup`)**:
+3. **Innocent Names Concealing Forbidden Ingredients (`pumpkin_soup`, `noodle_soup`)**:
    - `farmersdelight:pumpkin_soup` and `farmersdelight:noodle_soup` sound purely plant-based or neutral.
    - Their official recipes mandate `#c:foods/raw_pork`.
    - The engine detects `PLANT_NAME_MEAT_RECIPE` conflict with **HIGH** severity and assigns review priority 100.
 
-3. **Qualified Meat Names (`vegan_ham`, `mock_pork`, `porkless_sausage`)**:
+4. **Qualified Meat Names (`vegan_ham`, `mock_pork`, `porkless_sausage`)**:
    - An item named `vegan_ham` contains the keyword `ham`, but has the qualifier `vegan`.
-   - Treating `vegan_ham` as pork without inspection is a false positive.
    - The engine produces `NAME_EXCEPTION` alongside `NAME_KEYWORD`, raises `NAME_QUALIFIER_CONTRADICTION`, and routes it to `GENERAL_REVIEW` rather than auto-restricting it.
-
-4. **Species Modifier Discrepancies (`turkey_bacon`)**:
-   - `bacon` is traditionally swine-associated, but `turkey` modifies the meat origin.
-   - `turkey_bacon` is avian poultry, requiring slaughter provenance rather than swine prohibition.
-   - The engine recognizes `turkey` as a species modifier, routing the item to `MEAT_PROVENANCE_REQUIRED`.
 
 ---
 
@@ -104,21 +108,19 @@ $$\text{Mandatory Recipe Ingredients} > \text{Tag Classifications} > \text{Regis
 
 ## 5. Review Priority Scale
 
-Review priority ranges from 10 (lowest audit need) to 100 (immediate audit attention):
+Review priority ranges from 10 (lowest audit need) to 100 (immediate audit attention), ordering items strictly by **audit urgency**:
 
-| Priority | Trigger Criteria | Example |
+| Priority | Category / Criteria | Description & Example |
 | :---: | :--- | :--- |
-| **100** | Direct mandatory pork/swine recipe ingredient or tag | `pumpkin_soup`, `bacon` |
-| **95** | Untrusted religious claim on prohibited item | `halal_pork` |
-| **90** | Recipe vs Name contradiction | `noodle_soup` (plant name, pork recipe) |
-| **85** | Unqualified swine name without recipe | `pork_chop_item` |
-| **80** | Variable recipe with divergent fillings | `dumplings`, `cabbage_rolls` |
-| **70** | Livestock / poultry meat requiring slaughter provenance | `beef_stew`, `chicken_cuts`, `mutton_wrap` |
-| **60** | Intoxicant / alcohol keyword review | `apple_cider`, `beer`, `wine` |
-| **50** | Non-fish seafood review (cephalopods, shellfish) | `squid_ink_pasta`, `crab_legs` |
-| **40** | Qualified name / general review | `vegan_ham`, `porkless_sausage` |
-| **30** | Verified plant-based, dairy, egg, or scaled fish | `apple_pie`, `tomato`, `cod_slice` |
-| **10** | No recognizable signals found | `unnamed_produce` |
+| **100** | Mandatory Swine Ingredient or Tag | Direct pork/bacon/ham ingredients or tags (`bacon`, `pumpkin_soup`). |
+| **90–95** | High-Risk Contradiction / Conflict | Untrusted claims (`halal_pork`) or plant name hiding pork (`noodle_soup`). |
+| **80–85** | Variable Swine Recipes / Unqualified Names | Divergent fillings (`dumplings`, `cabbage_rolls`) or pork name without recipe (`ham`). |
+| **60–70** | Meat Provenance Required | Livestock/poultry meat needing slaughter verification (`beef_stew`, `chicken_cuts`). |
+| **50** | Seafood Review | Non-fish marine items requiring jurisprudence review (`squid_ink_pasta`, `crab_legs`). |
+| **40** | Scaled Fish Review Baseline | Scaled fish or fish-derived ingredients (`cod_slice`, `salmon_slice`, `fish_stew`). |
+| **30** | Likely Low-Risk Recipes | Dairy, egg, honey, or permitted composite items (`fried_egg`, `hot_cocoa`, `milk_bottle`). |
+| **20** | Likely Plant-Based Baseline | Pure crop, vegetable, fruit, grain, fungal items (`apple_pie`, `tomato`, `cabbage`). |
+| **10** | No Signal Discovered | Items lacking recipes, identifiable tags, or recognizable keywords (`unnamed_produce`). |
 
 ---
 
@@ -152,11 +154,19 @@ python3 -m tools.compatibility.audit.cli \
   --output build/audit/farmersdelight
 ```
 
+Output highlights:
+- **Total Registry Items Discovered**: 185
+- **Edible Candidates Audited**: 89
+- **Curated Pack Validated**: `muslimqol_farmersdelight`
+  - Clean: **True**
+  - Classified in pack: 89
+  - Missing: 0, Extra: 0, Duplicates: 0, Unknown IDs: 0, Diagnostics: 0
+
 ### Generated Artifacts
 All files are generated under `build/audit/<mod_id>/` (automatically gitignored):
-- **`summary.json`**: High-level counts, SHA-256 hash, suggestion breakdown, and pack validation results.
+- **`summary.json`**: High-level counts, SHA-256 hash, suggestion breakdown, pack validation report, and parser diagnostics.
 - **`evidence.json`**: Full per-item trace of all discovered facts, weights, recipes, and existing pack statuses.
-- **`review.md`**: Human-readable prioritized report grouping items by risk and highlighting conflicts.
+- **`review.md`**: Human-readable prioritized report grouping items by audit urgency, detailing conflicts, and displaying parser diagnostics.
 
 ---
 
