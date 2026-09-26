@@ -100,6 +100,97 @@ def extract_strings_from_class_bytecode(class_bytes: bytes) -> List[str]:
     return strings
 
 
+def extract_food_properties_fields(class_bytes: bytes) -> List[str]:
+    """
+    Extracts names of static fields whose descriptor is 'Lnet/minecraft/world/food/FoodProperties;'.
+    Standard JVM bytecode parsing without external tools.
+    """
+    if len(class_bytes) < 10:
+        return []
+    magic, minor, major, cp_count = struct.unpack(">IHHH", class_bytes[:10])
+    if magic != 0xCAFEBABE:
+        return []
+
+    idx = 10
+    cp: List[Any] = [None] * cp_count
+    i = 1
+    while i < cp_count:
+        if idx >= len(class_bytes):
+            raise ValueError(f"Truncated constant pool: expected {cp_count} entries, reached EOF at byte {idx}")
+        tag = class_bytes[idx]
+        idx += 1
+        if tag == 1:  # Utf8
+            if idx + 2 > len(class_bytes):
+                raise ValueError(f"Truncated Utf8 entry header at byte {idx}")
+            length, = struct.unpack(">H", class_bytes[idx:idx+2])
+            idx += 2
+            if idx + length > len(class_bytes):
+                raise ValueError(f"Truncated Utf8 data at byte {idx}")
+            val = class_bytes[idx:idx+length].decode("utf-8", errors="replace")
+            idx += length
+            cp[i] = ("utf8", val)
+        elif tag in (3, 4):  # Integer, Float
+            if idx + 4 > len(class_bytes):
+                raise ValueError(f"Truncated Integer/Float at byte {idx}")
+            idx += 4
+        elif tag in (5, 6):  # Long, Double
+            if idx + 8 > len(class_bytes):
+                raise ValueError(f"Truncated Long/Double at byte {idx}")
+            idx += 8
+            i += 1
+        elif tag in (7, 8):  # Class, String
+            if idx + 2 > len(class_bytes):
+                raise ValueError(f"Truncated Class/String reference at byte {idx}")
+            idx += 2
+        elif tag in (9, 10, 11, 12):  # Fieldref, Methodref, etc.
+            if idx + 4 > len(class_bytes):
+                raise ValueError(f"Truncated MemberRef at byte {idx}")
+            idx += 4
+        elif tag in (15, 16, 19, 20):  # MethodHandle, etc.
+            needed = 3 if tag == 15 else 2
+            if idx + needed > len(class_bytes):
+                raise ValueError(f"Truncated MethodHandle/Type at byte {idx}")
+            idx += needed
+        elif tag in (17, 18):  # Dynamic, InvokeDynamic
+            if idx + 4 > len(class_bytes):
+                raise ValueError(f"Truncated Dynamic at byte {idx}")
+            idx += 4
+        else:
+            raise ValueError(f"Unknown constant pool tag {tag} at byte {idx - 1}")
+        i += 1
+
+    if idx + 8 > len(class_bytes):
+        raise ValueError(f"Truncated class header at byte {idx}")
+    access_flags, this_class, super_class, interfaces_count = struct.unpack(">HHHH", class_bytes[idx:idx+8])
+    idx += 8 + interfaces_count * 2
+    if idx + 2 > len(class_bytes):
+        raise ValueError(f"Truncated interfaces/fields count at byte {idx}")
+    fields_count, = struct.unpack(">H", class_bytes[idx:idx+2])
+    idx += 2
+
+    food_fields: List[str] = []
+    for _ in range(fields_count):
+        if idx + 8 > len(class_bytes):
+            raise ValueError(f"Truncated field definition at byte {idx}")
+        f_flags, name_idx, desc_idx, attr_count = struct.unpack(">HHHH", class_bytes[idx:idx+8])
+        idx += 8
+        for _ in range(attr_count):
+            if idx + 6 > len(class_bytes):
+                raise ValueError(f"Truncated attribute header at byte {idx}")
+            _, attr_len = struct.unpack(">HI", class_bytes[idx:idx+6])
+            idx += 6 + attr_len
+            if idx > len(class_bytes):
+                raise ValueError(f"Truncated attribute data at byte {idx}")
+
+        name_entry = cp[name_idx] if name_idx < len(cp) else None
+        desc_entry = cp[desc_idx] if desc_idx < len(cp) else None
+        if name_entry and desc_entry:
+            if desc_entry[1] == "Lnet/minecraft/world/food/FoodProperties;":
+                food_fields.append(name_entry[1])
+
+    return food_fields
+
+
 def read_mod_jar(jar_path: str, mod_id: str) -> JarData:
     """
     Reads a mod JAR in a single pass and returns cached JarData.
@@ -183,10 +274,13 @@ def read_mod_jar(jar_path: str, mod_id: str) -> JarData:
         # 4. Extract registered items from bytecode class files
         registry_class_candidates = [
             n for n in names
-            if n.endswith(".class") and "$" not in n and "Tag" not in n and ("registry" in n or "init" in n or "item" in n) and ("Items" in n or "Item" in n)
+            if n.endswith(".class") and "$" not in n and "Tag" not in n and any(
+                k in n.lower() for k in ("registry", "registration", "init", "item", "setup")
+            )
         ]
 
-        class_items: Set[str] = set()
+        best_class_items: Set[str] = set()
+        best_overlap_count = 0
         for cls_name in registry_class_candidates:
             try:
                 class_bytes = z.read(cls_name)
@@ -196,9 +290,9 @@ def read_mod_jar(jar_path: str, mod_id: str) -> JarData:
                     if re.match(r"^[a-z0-9_]+$", s) and s not in (mod_id, "minecraft", "c", "id", "values", "tag", "properties", "food", "foodproperties")
                 }
                 overlap = items_in_class & {m.split(":", 1)[1] for m in model_items}
-                if len(overlap) >= 20:
-                    class_items = {f"{mod_id}:{s}" for s in items_in_class if f"{mod_id}:{s}" in model_items or not model_items}
-                    break
+                if len(overlap) >= 20 and len(overlap) > best_overlap_count:
+                    best_overlap_count = len(overlap)
+                    best_class_items = {f"{mod_id}:{s}" for s in overlap}
             except Exception as e:
                 diagnostics.append(
                     ParseDiagnostic(
@@ -209,14 +303,34 @@ def read_mod_jar(jar_path: str, mod_id: str) -> JarData:
                     )
                 )
 
-        if class_items:
-            discovered_items = class_items
+        if best_class_items:
+            discovered_items = best_class_items
         else:
             discovered_items = model_items
 
+        # 5. Extract FoodProperties from bytecode static fields
+        bytecode_food_candidates: Set[str] = set()
+        for cls_name in [n for n in names if n.endswith(".class") and "$" not in n]:
+            try:
+                class_bytes = z.read(cls_name)
+                food_fields = extract_food_properties_fields(class_bytes)
+                for f in food_fields:
+                    candidate_id = f"{mod_id}:{f.lower()}"
+                    if candidate_id in discovered_items:
+                        bytecode_food_candidates.add(candidate_id)
+            except Exception as e:
+                diagnostics.append(
+                    ParseDiagnostic(
+                        source_path=cls_name,
+                        error_type="FOOD_PROPERTIES_BYTECODE_PARSE_ERROR",
+                        message=f"Failed to inspect FoodProperties fields: {e}",
+                        severity="WARNING",
+                    )
+                )
+
     tag_registry = TagRegistry(raw_tags)
 
-    # 5. Discover edible candidates
+    # 6. Discover edible candidates
     food_tag_candidates: List[str] = [
         t for t in tag_registry.raw_tags
         if t.startswith("c:foods") or t.startswith("c:drinks")
@@ -235,6 +349,9 @@ def read_mod_jar(jar_path: str, mod_id: str) -> JarData:
         for itm in resolved:
             if itm.startswith(f"{mod_id}:"):
                 edible_candidates.add(itm)
+
+    # Incorporate bytecode FoodProperties candidates
+    edible_candidates.update(bytecode_food_candidates)
 
     if not edible_candidates:
         for out_id, recs in recipes_by_output.items():

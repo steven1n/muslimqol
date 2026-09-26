@@ -37,6 +37,7 @@ MEAT_PROVENANCE: Set[str] = {
     "lamb",
     "rabbit",
     "meat",
+    "meats",
     "poultry",
     "veal",
     "steak",
@@ -254,7 +255,52 @@ def tokenize_registry_path(path: str) -> List[str]:
             tokens.append(raw_tokens[i])
             i += 1
 
-    return tokens
+    # Decompose compound culinary tokens and strip redundant item suffix
+    decomposed_tokens: List[str] = []
+    meat_and_fish_signals = HIGH_RISK_SWINE | MEAT_PROVENANCE | FISH_HINTS | AMBIGUOUS_MEAT
+    prefixes = ("cooked", "raw", "ground")
+    meat_prefixes = ("pork", "beef", "chicken", "mutton", "rabbit", "fish", "bacon")
+
+    for t in tokens:
+        # Strip trailing item suffix if not an exact word 'item'
+        if t.endswith("item") and len(t) > 5 and not t.endswith("_item"):
+            t = t[:-4]
+
+        # Check culinary prefixes (e.g. cookedpork, rawbeef, cookedgroundbeef)
+        matched_prefix = False
+        for p in prefixes:
+            if t.startswith(p) and len(t) > len(p):
+                rest = t[len(p):]
+                if rest in meat_and_fish_signals:
+                    decomposed_tokens.extend([p, rest])
+                    matched_prefix = True
+                    break
+                for p2 in prefixes:
+                    if rest.startswith(p2) and len(rest) > len(p2):
+                        rest2 = rest[len(p2):]
+                        if rest2 in meat_and_fish_signals:
+                            decomposed_tokens.extend([p, p2, rest2])
+                            matched_prefix = True
+                            break
+                if matched_prefix:
+                    break
+
+        if matched_prefix:
+            continue
+
+        # Check meat prefixes for un-delimited compounds (e.g. porknoodlesoup, beefnoodlesoup)
+        matched_meat = False
+        if t not in NAME_EXCEPTIONS and not t.endswith("less"):
+            for mp in meat_prefixes:
+                if t.startswith(mp) and len(t) > len(mp):
+                    decomposed_tokens.extend([mp, t[len(mp):]])
+                    matched_meat = True
+                    break
+
+        if not matched_meat:
+            decomposed_tokens.append(t)
+
+    return decomposed_tokens
 
 
 def tokenize_identifier(identifier: str) -> List[str]:
