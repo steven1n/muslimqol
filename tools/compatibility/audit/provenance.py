@@ -314,6 +314,8 @@ class RecipeProvenanceEngine:
         self.diagnostics: List[ParseDiagnostic] = []
         self._item_cache: Dict[str, ItemProvenance] = {}
         self._tag_branch_cache: Dict[str, List[Tuple[str, List[str]]]] = {}
+        self._seen_cycles: Set[Tuple[str, str]] = set()
+        self._seen_depth_limits: Set[str] = set()
         self.total_cycles_detected: int = 0
         self.total_depth_limits_hit: int = 0
 
@@ -458,8 +460,8 @@ class RecipeProvenanceEngine:
             mandatory_fish=mand_fish,
             variable_fish=var_fish,
             is_pure_plant=is_pure_plant,
-            has_transitive_evidence=res.has_transitive,
-            has_variable_provenance=has_var,
+            has_transitive_evidence=any(p.relation == "TRANSITIVE" for p in res.paths),
+            has_variable_provenance=var_swine or var_meat or var_fish,
             cycles_detected=self.total_cycles_detected,
             depth_limits_hit=self.total_depth_limits_hit,
             paths=res.paths,
@@ -660,27 +662,33 @@ class RecipeProvenanceEngine:
         if not is_tag and leaf_id in self.recipes_by_output:
             # Intermediate item with recipes
             if leaf_id in path_stack:
-                self.total_cycles_detected += 1
-                self.diagnostics.append(
-                    ParseDiagnostic(
-                        source_path=f"{path_stack[-1]} -> {leaf_id}",
-                        error_type="PROVENANCE_CYCLE",
-                        message=f"Cycle detected in recipe provenance: {' -> '.join(path_stack + [leaf_id])}",
-                        severity="WARNING",
+                cycle_key = (path_stack[-1], leaf_id)
+                if cycle_key not in self._seen_cycles:
+                    self._seen_cycles.add(cycle_key)
+                    self.total_cycles_detected += 1
+                    self.diagnostics.append(
+                        ParseDiagnostic(
+                            source_path=f"{path_stack[-1]} -> {leaf_id}",
+                            error_type="PROVENANCE_CYCLE",
+                            message=f"Cycle detected in recipe provenance: {' -> '.join(path_stack + [leaf_id])}",
+                            severity="WARNING",
+                        )
                     )
-                )
                 return ProvenanceBranchResult(can_swine=False, can_non_swine=True, can_meat=False, can_non_meat=True)
 
             if len(path_stack) >= self.max_depth:
-                self.total_depth_limits_hit += 1
-                self.diagnostics.append(
-                    ParseDiagnostic(
-                        source_path=path_stack[-1],
-                        error_type="PROVENANCE_DEPTH_LIMIT",
-                        message=f"Max provenance depth {self.max_depth} reached: {' -> '.join(path_stack + [leaf_id])}",
-                        severity="WARNING",
+                depth_key = path_stack[-1]
+                if depth_key not in self._seen_depth_limits:
+                    self._seen_depth_limits.add(depth_key)
+                    self.total_depth_limits_hit += 1
+                    self.diagnostics.append(
+                        ParseDiagnostic(
+                            source_path=depth_key,
+                            error_type="PROVENANCE_DEPTH_LIMIT",
+                            message=f"Max provenance depth {self.max_depth} reached: {' -> '.join(path_stack + [leaf_id])}",
+                            severity="WARNING",
+                        )
                     )
-                )
                 return ProvenanceBranchResult(can_swine=False, can_non_swine=True, can_meat=False, can_non_meat=True)
 
             # Recurse with intermediate tag prefix if present in lineage

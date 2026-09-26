@@ -37,6 +37,12 @@ from tools.compatibility.audit.name_heuristics import (
 )
 from tools.compatibility.audit.recipe_parser import ParsedRecipe
 from tools.compatibility.audit.tag_parser import TagRegistry
+from tools.compatibility.audit.provenance import (
+    ItemProvenance,
+    RecipeProvenanceEngine,
+    is_container,
+    is_tool,
+)
 
 
 EXACT_SWINE_ITEMS: Set[str] = {
@@ -152,8 +158,20 @@ def is_plant_item_or_tag(signal: str) -> bool:
 class EvidenceEngine:
     """Synthesizes evidence and produces suggestions."""
 
-    def __init__(self, tag_registry: Optional[TagRegistry] = None):
+    def __init__(
+        self,
+        tag_registry: Optional[TagRegistry] = None,
+        recipes_by_output: Optional[Dict[str, List[ParsedRecipe]]] = None,
+        max_depth: int = 8,
+        provenance_engine: Optional[RecipeProvenanceEngine] = None,
+    ):
         self.tag_registry = tag_registry or TagRegistry()
+        self.recipes_by_output = recipes_by_output or {}
+        self.provenance_engine = provenance_engine or RecipeProvenanceEngine(
+            tag_registry=self.tag_registry,
+            recipes_by_output=self.recipes_by_output,
+            max_depth=max_depth,
+        )
 
     def analyze_item(
         self,
@@ -161,6 +179,7 @@ class EvidenceEngine:
         recipes: Optional[List[ParsedRecipe]] = None,
         item_tags: Optional[Set[str]] = None,
         curated_info: Optional[Dict[str, str]] = None,
+        provenance: Optional[ItemProvenance] = None,
     ) -> ItemAuditResult:
         """
         Analyzes a single item by integrating:
@@ -168,9 +187,13 @@ class EvidenceEngine:
         2. Recipes producing this item
         3. Tags applied directly to this item
         4. Curated pack data (if provided)
+        5. Recursive recipe provenance graph
         """
         recipes = recipes or []
         item_tags = item_tags or set()
+
+        if provenance is None and self.provenance_engine:
+            provenance = self.provenance_engine.evaluate_item(item_id)
 
         tokens, name_evidence = analyze_registry_id(item_id)
         all_evidence: List[AuditEvidence] = list(name_evidence)
@@ -256,6 +279,26 @@ class EvidenceEngine:
                     id_tokens = set(tokenize_identifier(clean_id))
                     if not (id_tokens & PLANT_HINTS or id_tokens & {"bowl", "bottle", "bucket", "glass", "water", "salt"}):
                         recipe_pure_plant = False
+
+        # Integrate recursive recipe provenance
+        if provenance:
+            for ev in provenance.evidence:
+                all_evidence.append(ev)
+            if provenance.mandatory_swine:
+                has_recipe_swine = True
+            elif provenance.variable_swine:
+                has_recipe_swine = False
+                has_recipe_variable = True
+            if provenance.has_variable_provenance:
+                has_recipe_variable = True
+            if provenance.mandatory_meat:
+                has_recipe_meat = True
+            if provenance.mandatory_fish:
+                has_recipe_fish = True
+            if provenance.is_pure_plant:
+                recipe_pure_plant = True
+            elif has_recipe_swine or has_recipe_meat or has_recipe_fish or has_recipe_variable:
+                recipe_pure_plant = False
 
         # Name flags
         name_swine = any(e.kind == EvidenceKind.NAME_KEYWORD and (e.signal in HIGH_RISK_SWINE or e.signal in SWINE_ASSOCIATED) for e in name_evidence)
@@ -356,12 +399,12 @@ class EvidenceEngine:
         confidence: Confidence
         priority: int
 
-        # 1. High risk swine
-        if has_recipe_swine or has_tag_swine:
+        # 1. High risk swine (must be mandatory)
+        if (provenance and provenance.mandatory_swine) or (not (provenance and provenance.variable_swine) and (has_recipe_swine or has_tag_swine)):
             category = SuggestionCategory.HIGH_RISK_RESTRICTED
             confidence = Confidence.HIGH
             priority = 100
-        elif has_recipe_variable:
+        elif (provenance and (provenance.variable_swine or provenance.variable_meat or provenance.has_variable_provenance)) or has_recipe_variable:
             category = SuggestionCategory.AMBIGUOUS_RECIPE
             confidence = Confidence.HIGH
             priority = 80
@@ -370,7 +413,7 @@ class EvidenceEngine:
             confidence = Confidence.MEDIUM
             priority = 85
         # 2. Non-swine Meat Provenance
-        elif has_recipe_meat or has_tag_meat:
+        elif (provenance and provenance.mandatory_meat) or has_recipe_meat or has_tag_meat:
             category = SuggestionCategory.MEAT_PROVENANCE_REQUIRED
             confidence = Confidence.HIGH
             priority = 70
@@ -388,7 +431,7 @@ class EvidenceEngine:
             confidence = Confidence.MEDIUM
             priority = 50
         # 4. Scaled Fish Review Baseline
-        elif has_recipe_fish or has_tag_fish:
+        elif (provenance and provenance.mandatory_fish) or has_recipe_fish or has_tag_fish:
             category = SuggestionCategory.FISH_REVIEW_BASELINE
             confidence = Confidence.HIGH
             priority = 40
@@ -406,7 +449,7 @@ class EvidenceEngine:
             confidence = Confidence.MEDIUM
             priority = 30
         # 6. Pure Plant-Based
-        elif recipe_pure_plant:
+        elif recipe_pure_plant or (provenance and provenance.is_pure_plant):
             category = SuggestionCategory.LIKELY_PLANT_BASED
             confidence = Confidence.HIGH
             priority = 20
@@ -475,4 +518,5 @@ class EvidenceEngine:
             recipes=recipe_summaries,
             tags=sorted(item_tags),
             is_edible=True,
+            provenance=provenance,
         )
