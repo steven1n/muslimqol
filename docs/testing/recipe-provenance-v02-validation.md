@@ -42,51 +42,53 @@ while strictly preserving **alternative-choice semantics** (Mandatory vs. Variab
 | **Edible Candidates** | 89 | 180 |
 | **Parsed Recipes** | 328 | 218 |
 | **Parsed Item Tags** | 105 | 197 |
-| **Items with Transitive Evidence** | **33** | **62** |
-| **Items with Variable Provenance** | **4** | **14** |
-| **Distinct Cyclic Edges Detected** | **30** | **0** |
+| **Items with Transitive Evidence** | **49** | **127** |
+| **Items with Variable Provenance** | **6** | **5** |
+| **Distinct Cyclic Edges Detected** | **23** | **0** |
+| **Items Encountering Cycles** | **13** | **0** |
+| **Items Genuinely Incomplete** | **0** | **28** (at depth 8) / **5** (at depth 12) |
 | **Depth Limits Hit (Max Depth = 8)** | **0** | **3** |
 | **Curated Pack Clean Status** | **True** (89 / 89 classified) | N/A (Pack not yet built) |
 
 ---
 
-## 3. Comparative Distribution: v0.1 vs. v0.2
+## 3. Comparative Distribution: v0.1 vs. Hardened v0.2
 
 ### 3.1 Farmer's Delight 1.3.4 Comparison
 
-Farmer's Delight served as the regression baseline. All 89 edible candidates retained their exact heuristic categorization between v0.1 and v0.2, while gaining deep ingredient lineage and cycle tracking:
+In Farmer's Delight, the curated pack validation remains completely intact (89 / 89 classified, Clean = True). Heuristic suggestion changes between v0.1 and hardened v0.2 reflect deliberate correctness improvements—specifically preserving dairy/egg provenance and recognizing variable recipe branches:
 
-| Suggestion Category | v0.1 Count | v0.2 Count | Delta |
-| :--- | :---: | :---: | :---: |
-| `HIGH_RISK_RESTRICTED` | 10 | 10 | 0 |
-| `MEAT_PROVENANCE_REQUIRED` | 19 | 19 | 0 |
-| `LIKELY_PLANT_BASED` | 31 | 31 | 0 |
-| `LIKELY_LOW_RISK_RECIPE` | 12 | 12 | 0 |
-| `FISH_REVIEW_BASELINE` | 10 | 10 | 0 |
-| `SEAFOOD_REVIEW` | 1 | 1 | 0 |
-| `AMBIGUOUS_RECIPE` | 6 | 6 | 0 |
-| `GENERAL_REVIEW` | 0 | 0 | 0 |
-| `NO_SIGNAL` | 0 | 0 | 0 |
-| **Total Edible Items** | **89** | **89** | **0** |
+| Suggestion Category | v0.1 Count | Hardened v0.2 Count | Delta | Rationale |
+| :--- | :---: | :---: | :---: | :--- |
+| `HIGH_RISK_RESTRICTED` | 10 | 10 | 0 | Strict swine invariants preserved. |
+| `MEAT_PROVENANCE_REQUIRED` | 19 | 19 | 0 | Meat provenance items preserved. |
+| `LIKELY_PLANT_BASED` | 31 | 23 | **-8** | Items with dairy/egg provenance (e.g. `apple_pie`, `apple_pie_slice`, cookies with milk, cheesecake) correctly shift to `LIKELY_LOW_RISK_RECIPE`. |
+| `LIKELY_LOW_RISK_RECIPE` | 12 | 17 | **+5** | Correctly accommodates baked goods and composite items with verified dairy/egg components. |
+| `FISH_REVIEW_BASELINE` | 10 | 10 | 0 | Scaled fish items. |
+| `SEAFOOD_REVIEW` | 1 | 1 | 0 | Squid ink pasta. |
+| `AMBIGUOUS_RECIPE` | 6 | 8 | **+2** | Dishes with alternative filling choices (e.g. dumpling/cabbage roll/stew variants). |
+| `GENERAL_REVIEW` | 0 | 0 | 0 | Zero items unresolved or conflicting. |
+| `NO_SIGNAL` | 0 | 1 | **+1** | Neutral items without dietary signal. |
+| **Total Edible Items** | **89** | **89** | **0** | **Pack Clean = True** |
 
 - **Pack Verification**: `muslimqol_farmersdelight` verified **Clean = True**, 0 missing, 0 extra, 0 duplicates, 0 unknown IDs, 0 diagnostics.
-- **Variable Provenance (4 items)**: `cabbage_rolls`, `dumplings`, `barbecue_stick`, `dog_food` were confirmed to have variable meat/swine recipe branches, matching human curation in the pack (`DOUBTFUL:unknown_ingredients`).
+- **Genuine Incompleteness vs Cycles**: While 13 items encounter reversible cutting/packaging cycles, **0 items are genuinely incomplete**—all cycles resolve through inherent item identity or parallel complete production recipes.
 
 ### 3.2 Pam's HarvestCraft 2 Food Core Comparison
 
-In Pam's HarvestCraft 2, the recursive provenance graph produced profound diagnostic enhancements by discovering transitive meat/swine ingredients hidden inside custom intermediate foods and tags:
+In Pam's HarvestCraft 2, the recursive provenance graph discovers deep multi-hop ingredient connections:
 
-| Suggestion Category | v0.1 Count | v0.2 Count | Delta | Diagnostic Rationale |
+| Suggestion Category | v0.1 Count | Hardened v0.2 Count | Delta | Diagnostic Rationale |
 | :--- | :---: | :---: | :---: | :--- |
-| `HIGH_RISK_RESTRICTED` | 13 | 13 | 0 | Retained 100% precision on swine items. |
+| `HIGH_RISK_RESTRICTED` | 13 | 21 | **+8** | Transitive swine verified (e.g. `hotdogitem` via `groundporkitem`, `epicbaconitem`). |
 | `MEAT_PROVENANCE_REQUIRED` | 27 | 31 | **+4** | Intermediate meats (`friedchickenitem`, `groundchickenitem`) traced to concrete poultry/meat. |
-| `LIKELY_PLANT_BASED` | 95 | 89 | **-6** | Innocently named vegetable/noodle soups utilizing meat-derived stock shifted to ambiguous. |
-| `LIKELY_LOW_RISK_RECIPE` | 37 | 28 | **-9** | Multi-ingredient soups and composite dishes utilizing stock shifted to ambiguous. |
+| `LIKELY_PLANT_BASED` | 95 | 23 | **-72** | Genuine plant-only foods separated from dairy/egg items and deep grain/dough composites. |
+| `LIKELY_LOW_RISK_RECIPE` | 37 | 56 | **+19** | Items with verified dairy/egg lineage (milk, butter, cheese, eggs) correctly categorized as low-risk. |
 | `FISH_REVIEW_BASELINE` | 6 | 6 | 0 | Unchanged fish baseline items. |
 | `SEAFOOD_REVIEW` | 0 | 0 | 0 | No marine/crustacean items in Food Core. |
-| `AMBIGUOUS_RECIPE` | 2 | 13 | **+11** | Soups using `pamhc2foodcore:stockitem` inherited its variable swine/meat provenance. |
-| `GENERAL_REVIEW` | 0 | 0 | 0 | No qualified-name contradictions. |
-| `NO_SIGNAL` | 0 | 0 | 0 | All items had bytecode or tag signals. |
+| `AMBIGUOUS_RECIPE` | 2 | 5 | **+3** | Includes `pamhc2foodcore:stockitem` with variable swine/meat/fish provenance. |
+| `GENERAL_REVIEW` | 0 | 9 | **+9** | Safe routing for items with incomplete provenance due to depth limits and no higher risk. |
+| `NO_SIGNAL` | 0 | 29 | **+29** | Basic ingredients without dietary recipes/tags. |
 | **Total Edible Items** | **180** | **180** | **0** | |
 
 ---
@@ -212,17 +214,22 @@ farmersdelight:dumplings [VARIABLE]
 - **Evaluation**: Dumpling meat fillings accept chicken, pork, or beef.
 - **Suggestion**: `AMBIGUOUS_RECIPE` (Review Priority 90).
 
-### 5.5 Innocuous Plant Composite with Cyclic Milk: `farmersdelight:apple_pie`
+### 5.5 Dairy Provenance Composite: `farmersdelight:apple_pie`
 ```text
-farmersdelight:apple_pie
-└── (No external dietary provenance paths)
+farmersdelight:apple_pie [VARIABLE]
+└── farmersdelight:pie_crust (TRANSITIVE)
+    ├── #c:milk (DAIRY)
+    └── #c:drinks/milk (DAIRY)
+        └── farmersdelight:milk_bottle (DAIRY)
+            └── minecraft:milk_bucket (DAIRY)
 ```
-- **Evaluation**: Apple pie uses `pie_crust` (wheat, sugar, milk) and apples. The reversible milk conversions (`milk_bucket <-> milk_bottle`) and pie slicing (`apple_pie <-> apple_pie_slice`) are cycle-filtered, correctly leaving 0 swine or meat signals.
-- **Suggestion**: `LIKELY_PLANT_BASED` (Review Priority 20).
+- **Evaluation**: Apple pie utilizes `pie_crust`, which requires `#c:milk` or `#c:drinks/milk` (resolving via `farmersdelight:milk_bottle` to `minecraft:milk_bucket`). Because consumed dairy is present, `is_pure_plant` is correctly `False`.
+- **Suggestion**: `LIKELY_LOW_RISK_RECIPE` (Review Priority 30).
+- **Semantics**: Correctly distinguishes pure plant-based foods from dairy/egg baked goods, adhering strictly to project dietary semantics without hardcoding.
 
 ---
 
-## 6. Cycle Detection & Graph Termination
+## 6. Cycle Detection, Incomplete Provenance & Graph Termination
 
 Minecraft crafting recipes frequently contain cycles:
 1. **Container / Liquid Packaging Cycles**:
@@ -232,33 +239,38 @@ Minecraft crafting recipes frequently contain cycles:
    - `farmersdelight:tomato` $\longleftrightarrow$ `farmersdelight:tomato_crate`
 3. **Cutting & Slicing Cycles**:
    - `farmersdelight:apple_pie` $\longleftrightarrow$ `farmersdelight:apple_pie_slice`
-   - `farmersdelight:cabbage` $\longleftrightarrow$ `farmersdelight:cabbage_leaf`
+   - `farmersdelight:pumpkin` $\longleftrightarrow$ `farmersdelight:pumpkin_slice`
 
-### Cycle Detection Mechanism
-- The engine maintains a call-stack of active items (`item_stack`) and active tags (`tag_stack`).
+### Cycle Semantics & Non-Fabrication of Safety
+- The engine maintains a call-stack of active items (`path_stack`) and active tags (`tag_stack`).
 - When an edge `(source, target)` points to an element already on the traversal stack, a cycle is detected:
   - Traversal immediately terminates for that branch.
   - A structured `ParseDiagnostic` with `error_type="PROVENANCE_CYCLE"` is recorded.
   - A deduplicated set of seen cyclic edges prevents diagnostic log explosion.
-- **Farmer's Delight Result**: Exactly **30 distinct cyclic edges** detected and safely bypassed; 0 infinite loops, 0 crashes.
+- **Critical Semantic Hardening**: A cyclic edge is **non-evidentiary / incomplete**, NOT a safe production path. For instance, in `B -> A -> B` and `B -> pork`, the cyclic path `B -> A -> B` cannot fabricate a safe non-swine alternative to turn mandatory swine into variable swine.
+- **Inherent Item Resolution**: When all recipes for a base crop or item in the JAR are reversible packaging/slicing loops (e.g. `cabbage <-> cabbage_crate`, `pumpkin <-> pumpkin_slice`), the engine resolves the item to its inherent recognized identity (e.g. plant crop or dairy item) rather than falsely marking the item as incomplete unknown.
+- **Farmer's Delight Result**: Exactly **23 distinct cyclic edges** detected and safely bypassed across 13 audited items. **0 items are genuinely incomplete**; pack clean verification is **True** (89 / 89).
 
 ---
 
-## 7. Depth Limits & Deep Crafting Chains
+## 7. Depth Limits, Benchmarking & Incomplete Provenance
 
 In Pam's HarvestCraft 2, intermediate culinary chains can be very deep:
 $$\text{wheat} \to \text{flour} \to \text{dough} \to \text{bread} \to \text{toast} \to \text{applejellytoast}$$
 
-### Depth Limit Mechanism
+### Depth Limit Mechanism & Incomplete State Routing
 - The `--max-provenance-depth` argument (default **8**) caps recursion depth.
 - When `len(path_stack) >= max_depth`:
-  - Recurse terminates safely.
+  - Recursion terminates safely.
   - A `ParseDiagnostic` with `error_type="PROVENANCE_DEPTH_LIMIT"` is emitted with the exact path stack.
-- **Pam's HarvestCraft 2 Result**: Exactly **3 depth limits hit** at depth 8:
-  1. `pamhc2foodcore:doughitem`: reached via `applejellytoastitem -> toast -> bread -> dough -> mixingbowlitem`
-  2. `pamhc2foodcore:flouritem`: reached via `baconcheeseburgeritem -> bread -> dough -> flour -> grinderitem`
-  3. `pamhc2foodcore:saltitem`: reached via `baconcheeseburgeritem -> bread -> dough -> salt -> freshwateritem`
-- All 3 occurred inside purely plant/mineral intermediate ingredients where food safety is unaffected.
+  - The branch is marked `incomplete=True` with `incomplete_reasons=["DEPTH_LIMIT"]`.
+- **Honest Incompleteness**: Depth truncation means **UNKNOWN**, never safe non-swine or pure plant.
+  - If mandatory risk exists (e.g. `hotdogitem` with required `groundporkitem`), the item remains `mandatory_swine=True` and `HIGH_RISK_RESTRICTED`.
+  - If no higher risk exists, incomplete items route to `GENERAL_REVIEW` (review priority 65), never `LIKELY_PLANT_BASED`.
+- **Pam's HarvestCraft 2 Benchmark (Depth 8 vs. 12)**:
+  - At **Depth 8** (default): execution time 0.44s; 3 distinct depth-limit truncation sites (`doughitem`, `flouritem`, `saltitem`) affecting 28 deep grain/composite items.
+  - At **Depth 12**: execution time 0.53s (+0.09s); depth-limit truncation sites reduced to 2 (`flouritem`, `saltitem`) affecting only 5 jelly toast items.
+  - Graph traversal remains linear and sub-second at both depths without exponential expansion.
 
 ---
 
@@ -280,20 +292,30 @@ A comprehensive test suite in `tools/compatibility/tests/test_provenance.py` cov
 | `test_meat_tag_detection` | Identifies meat tags in nested hierarchies | **PASS** |
 | `test_fish_tag_detection` | Identifies fish tags in nested hierarchies | **PASS** |
 | `test_evidence_engine_integration` | Validates lattice suggestions with provenance facts | **PASS** |
+| `test_alternative_branch_not_mandatory_pork` | Choice slot pork path is mandatory=False | **PASS** |
+| `test_stock_choice_paths_not_mandatory` | Stock pork/beef/fish paths are all mandatory=False | **PASS** |
+| `test_depth_limit_incomplete_not_plant` | Depth cutoff leads to incomplete=True, NOT pure plant | **PASS** |
+| `test_cycle_branch_not_safe_alternative` | Cyclic branch cannot fabricate non-swine alternative | **PASS** |
+| `test_mandatory_dairy_egg` | Direct egg and dairy produce LIKELY_LOW_RISK_RECIPE | **PASS** |
+| `test_transitive_dairy_egg` | Transitive custard produces LIKELY_LOW_RISK_RECIPE | **PASS** |
+| `test_apple_pie_synthetic_chain` | Synthetic apple pie with milk resolves to LOW_RISK | **PASS** |
+| `test_per_item_cycle_and_depth_metrics` | Item diagnostics do not accumulate engine-wide totals | **PASS** |
+| `test_dish_intermediate_mandatory_pork` | Single-branch intermediate pork remains mandatory=True | **PASS** |
+| `test_mandatory_swine_preserved_despite_depth_limit` | Hotdog pork remains mandatory despite deep bread cutoff | **PASS** |
 
 ### Test Suite Execution
 ```bash
 python3 -m unittest discover tools/compatibility/tests/
-........................................................
+..................................................................
 ----------------------------------------------------------------------
-Ran 56 tests in 0.021s
+Ran 66 tests in 0.037s
 
 OK
 ```
-All **56 unit tests pass** (exceeding the baseline of 44 tests).
+All **66 unit tests pass** (exceeding the baseline of 56 tests).
 
 ---
 
 ## 9. Conclusion
 
-The v0.2 Recipe Provenance Graph successfully bridges the gap between surface item names and deep ingredient reality. By systematically tracking alternative vs. mandatory branches, detecting cycles, and ignoring kitchen tools, it uncovers hidden culinary risks (such as stock-derived swine in soups) while preserving 100% precision on existing pack validations.
+Compatibility Audit Engine v0.2 Recipe Provenance Graph establishes rigorous, explainable ingredient provenance across diverse third-party food mod JAR architectures. By correctly modeling alternative vs. mandatory branches, conservatively treating depth/cycle truncations as incomplete unknown states, separating dairy/egg provenance from plant baselines, and distinguishing per-item diagnostics from global metrics, the audit engine provides reliable, automated evidence assistance for human jurists and mod auditors.

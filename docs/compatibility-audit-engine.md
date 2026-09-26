@@ -139,24 +139,29 @@ The Recipe Provenance Graph (`RecipeProvenanceEngine`) recursively traces ingred
 A fundamental principle of the provenance graph is distinguishing **mandatory** ingredients from **alternative** choices:
 - **Mandatory Ingredient**: An ingredient slot that requires swine/meat across all valid substitutions.
   - Example: `hotdogitem` mandates `groundporkitem`. Every valid substitution is pork.
-  - Evaluation: Flagged as `HIGH_RISK_RESTRICTED` (priority 100).
+  - Evaluation: Flagged as `HIGH_RISK_RESTRICTED` (priority 100), paths labeled `Mandatory transitive swine provenance`.
 - **Alternative / Variable Branch**: An ingredient slot or tag providing multiple choices where some are swine/meat and others are plant, fish, or halal meat.
   - Example: `farmersdelight:dumplings` accepts chicken, beef, or pork.
-  - Example: `pamhc2foodcore:stockitem` accepts `#c:rawmeats` (pork, beef, chicken, or fish).
-  - Evaluation: Flagged as `AMBIGUOUS_RECIPE` (priority 80–90) with `VARIABLE_PROVENANCE` evidence.
+  - Example: `pamhc2foodcore:stockitem` accepts `#c:stock_ingredients` (pork, beef, chicken, or fish).
+  - Evaluation: Flagged as `AMBIGUOUS_RECIPE` (priority 80–90) with `VARIABLE_PROVENANCE` evidence; individual alternative paths are explicitly marked `mandatory=False` and labeled `Alternative transitive ... provenance`.
 
-### 6.3 Tool & Container Exclusion Policy
-Crafting recipes often include preparation tools, cooking surfaces, or packaging containers (e.g. `c:tools/knife`, `c:tools/skillet`, `c:tools/pot`, `minecraft:bowl`, `minecraft:bucket`).
+### 6.3 Dairy and Egg Provenance Separation
+`is_pure_plant` strictly requires that all consumed dietary ingredient provenance is demonstrably plant/fungal/crop-based. Foods containing milk, butter, cheese, or eggs (e.g. `apple_pie`, `custard`, `fried_egg`, `milk_cookie`) are tracked with dedicated dairy/egg provenance dimensions (`can_dairy_egg`, `mandatory_dairy_egg`, `variable_dairy_egg`) and route to `LIKELY_LOW_RISK_RECIPE` (priority 30), never falsely claimed as pure plant.
+
+### 6.4 Tool & Container Exclusion Policy
+Crafting recipes often include preparation tools, cooking surfaces, or packaging containers (e.g. `c:tools/knife`, `c:tools/skillet`, `c:tools/pot`, `minecraft:bowl`, `minecraft:bucket`, `minecraft:stick`).
 The engine automatically filters out tools and utility containers from ingredient evaluation so kitchen utensils never distort dietary classification.
 
-### 6.4 Cycle Detection & Depth Limits
+### 6.5 Cycle Detection, Incomplete Provenance & Depth Limits
 Minecraft crafting frequently introduces cycles (e.g. crate packing/unpacking `cabbage <-> cabbage_crate`, pie slicing `apple_pie <-> apple_pie_slice`, cutting `cabbage <-> cabbage_leaf`, and liquid bottling `milk_bucket <-> milk_bottle`):
-- **Cycle Detection (`PROVENANCE_CYCLE`)**: Tracks active traversal stacks and emits structured diagnostics on detection while safely pruning the cyclic edge.
+- **Cycle Semantics (`PROVENANCE_CYCLE`)**: A cyclic edge is **non-evidentiary / incomplete**, never a safe alternative path. Cyclic branches cannot turn mandatory swine into variable swine. Where all recipes in a JAR are reciprocal conversions (e.g. `cabbage <-> cabbage_crate`), the engine resolves the item to its inherent recognized identity.
+- **Incomplete Provenance Model**: Traversal truncations (depth limits or cycles without safe paths) represent **UNKNOWN**, never proof of safety. If mandatory risk is present, the mandatory risk takes precedence; otherwise, incomplete items safely route to `GENERAL_REVIEW` (review priority 65), never `LIKELY_PLANT_BASED`.
 - **Depth Limits (`PROVENANCE_DEPTH_LIMIT`)**: Bounded by `--max-provenance-depth` (default 8) to prevent runaway execution in deep crafting webs.
+- **Per-Item Diagnostics**: `cycles_detected` and `depth_limits_hit` in `ItemProvenance` report per-item counts, while engine-wide totals are recorded in `summary.json`.
 
-### 6.5 Lattice Propagation & Triage Integration
+### 6.6 Lattice Propagation & Triage Integration
 Provenance facts integrate into the audit lattice:
-$$\text{Mandatory Swine (100)} > \text{Variable Swine / Ambiguous (80--90)} > \text{Mandatory Meat (70)} > \text{Fish Baseline (40)} > \text{Plant / Low-Risk (20--30)}$$
+$$\text{Mandatory Swine (100)} > \text{Variable Swine / Ambiguous (80--90)} > \text{Mandatory Meat (70)} > \text{Incomplete Provenance (65)} > \text{Fish Baseline (40)} > \text{Dairy/Low-Risk (30)} > \text{Pure Plant (20)}$$
 
 ---
 
