@@ -147,7 +147,7 @@ def is_swine_item_or_tag(signal: str) -> bool:
         return False
     if (tokens & MODIFIER_SPECIES) and not (tokens & HIGH_RISK_SWINE):
         return False
-    if tokens & NAME_EXCEPTIONS and not (tokens & HIGH_RISK_SWINE):
+    if tokens & NAME_EXCEPTIONS:
         return False
     return bool(tokens & HIGH_RISK_SWINE or tokens & SWINE_ASSOCIATED)
 
@@ -393,11 +393,11 @@ class RecipeProvenanceEngine:
             mand_fish = res.can_fish and not res.can_non_fish
             var_fish = res.can_fish and res.can_non_fish
         else:
-            mand_swine = is_swine_item_or_tag(item_id)
+            mand_swine = False
             var_swine = False
-            mand_meat = is_meat_item_or_tag(item_id)
+            mand_meat = False
             var_meat = False
-            mand_fish = is_fish_item_or_tag(item_id)
+            mand_fish = False
             var_fish = False
 
         has_var = var_swine or var_meat or var_fish or res.is_variable
