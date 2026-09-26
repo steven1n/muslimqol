@@ -216,6 +216,11 @@
       "reason": "audited_permitted_recipe"
     },
     {
+      "item": "pamhc2foodcore:honeypieitem",
+      "status": "HALAL",
+      "reason": "audited_permitted_recipe"
+    },
+    {
       "item": "pamhc2foodcore:hotchocolateitem",
       "status": "HALAL",
       "reason": "audited_permitted_recipe"

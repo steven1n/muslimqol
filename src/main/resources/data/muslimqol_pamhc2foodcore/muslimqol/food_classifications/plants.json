@@ -146,11 +146,6 @@
       "reason": "plant_based"
     },
     {
-      "item": "pamhc2foodcore:honeypieitem",
-      "status": "HALAL",
-      "reason": "plant_based"
-    },
-    {
       "item": "pamhc2foodcore:jellybeansitem",
       "status": "HALAL",
       "reason": "plant_based"
