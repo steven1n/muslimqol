@@ -82,6 +82,18 @@ public final class CompatibilitySnapshot {
         return runtimeState.skippedPacks();
     }
 
+    public Map<String, CompatibilityPackState> getPackStates() {
+        return runtimeState.packStates();
+    }
+
+    public Map<String, CompatibilityPackState> getVerifiedPacks() {
+        return runtimeState.verifiedPacks();
+    }
+
+    public Map<String, CompatibilityPackState> getUnverifiedPacks() {
+        return runtimeState.unverifiedPacks();
+    }
+
     public ClassificationResolution resolve(ResourceLocation itemId) {
         return resolve(itemId, ItemStack.EMPTY);
     }
