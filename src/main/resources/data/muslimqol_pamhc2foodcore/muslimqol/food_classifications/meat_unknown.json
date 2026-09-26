@@ -1,0 +1,149 @@
+{
+  "values": [
+    {
+      "item": "pamhc2foodcore:basiccheeseburgeritem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:basicchickensandwichitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:basichamburgeritem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:basicmuttonsandwichitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:basicrabbitsandwichitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:beefjerkyitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:beefpotpieitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:chickendinneritem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:chickenjerkyitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:chickennuggetitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:chickenpotpieitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:cookedgroundbeefitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:cookedgroundchickenitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:cookedgroundmuttonitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:cookedgroundrabbititem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:friedchickenitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:grilledbeefskeweritem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:grilledchickenskeweritem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:grilledmuttonskeweritem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:grilledrabbitskeweritem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:groundbeefitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:groundchickenitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:groundmuttonitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:groundrabbititem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:muttonjerkyitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:muttonpotpieitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:potroastitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:rabbitjerkyitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    },
+    {
+      "item": "pamhc2foodcore:rabbitpotpieitem",
+      "status": "UNKNOWN",
+      "reason": "unspecified_meat"
+    }
+  ]
+}

@@ -1,0 +1,259 @@
+{
+  "values": [
+    {
+      "item": "pamhc2foodcore:applejellyitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:applejuiceitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:applepieitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:applepopsicleitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:applesauceitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:applesmoothieitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:bakedvegetablemedlyitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:carrotbreaditem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:carrotjuiceitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:carrotpieitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:chocolatebaritem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:chocolatepieitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:chorusjellyitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:chorusjuiceitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:choruspieitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:choruspopsicleitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:chorussmoothieitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:cottoncandyitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:crackeritem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:friesitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:fruitpunchitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:fruitsaladitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:glowberryjellyitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:glowberryjuiceitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:glowberrypieitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:glowberrypopsicleitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:glowberrysmoothieitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:grilledveggieskeweritem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:gummycreepersitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:jellybeansitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:marshmellowsitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:melonjellyitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:melonjuiceitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:melonpieitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:melonpopsicleitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:melonsmoothieitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:p8juiceitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:pickledbeetsitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:potatochipsitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:pumpkinbreaditem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:roastedsunflowerseedsitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:smoresitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:softpretzelitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:sunflowerseedsitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:sweetberryjellyitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:sweetberryjuiceitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:sweetberrypieitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:sweetberrypopsicleitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:sweetberrysmoothieitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:trailmixitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    },
+    {
+      "item": "pamhc2foodcore:veggiepotpieitem",
+      "status": "HALAL",
+      "reason": "plant_based"
+    }
+  ]
+}

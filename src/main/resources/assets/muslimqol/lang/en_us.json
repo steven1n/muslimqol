@@ -20,6 +20,7 @@
   "food_reason.muslimqol.tag_restricted": "Classified as Restricted via item tag",
   "food_reason.muslimqol.tag_doubtful": "Classified as Doubtful via item tag",
   "food_reason.muslimqol.datapack": "Classified via datapack configuration",
+  "food_reason.muslimqol.variable_provenance": "Variable ingredient provenance (may contain permissible or restricted components)",
   "food_reason.muslimqol.user_override": "Configured by user override",
 
   "food_policy.muslimqol.allow": "Allow",

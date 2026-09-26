@@ -20,6 +20,7 @@
   "food_reason.muslimqol.tag_restricted": "مصنف كمحظور عبر وسوم العناصر",
   "food_reason.muslimqol.tag_doubtful": "مصنف كمشتبه فيه عبر وسوم العناصر",
   "food_reason.muslimqol.datapack": "مصنف عبر حزمة بيانات",
+  "food_reason.muslimqol.variable_provenance": "مصدر مكونات متغير (قد يحتوي على مكونات مباحة أو محظورة)",
   "food_reason.muslimqol.user_override": "محدد بتفضيلات المستخدم",
 
   "food_policy.muslimqol.allow": "سماح",
