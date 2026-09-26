@@ -19,13 +19,14 @@ Compatibility Audit Engine (Python, offline & deterministic)
   ├── 1. Registry Bytecode & Model Extraction
   ├── 2. Tag Hierarchy Resolution (Token-Safe Matching)
   ├── 3. Nested Recipe Traversal (Compound / Difference)
-  ├── 4. Tokenization & Keyword Heuristics
-  ├── 5. Evidence Conflict & Divergence Diagnostics
-  ├── 6. Parser Diagnostics & Error Reporting
-  └── 7. Pack Validation against Curated JSONs (Clean & Unknown ID Checks)
+  ├── 4. Recipe Provenance Graph (Recursive Tracing, Cycles, Depth Limit)
+  ├── 5. Tokenization & Keyword Heuristics
+  ├── 6. Evidence Conflict & Divergence Diagnostics
+  ├── 7. Parser Diagnostics & Error Reporting
+  └── 8. Pack Validation against Curated JSONs (Clean & Unknown ID Checks)
         │
         ▼
-Diagnostic Reports (`summary.json`, `evidence.json`, `review.md`)
+Diagnostic Reports (`summary.json`, `evidence.json`, `provenance.json`, `review.md`)
         │
         ▼
 Human Auditor Review & Jurisprudential Verification
@@ -124,7 +125,42 @@ Review priority ranges from 10 (lowest audit need) to 100 (immediate audit atten
 
 ---
 
-## 6. CLI Usage & Workflow
+## 6. Recipe Provenance Graph (v0.2)
+
+### 6.1 Multi-Hop Transitive Provenance vs. Direct Ingredients
+In complex culinary mods, food recipes rarely call for raw base ingredients directly. Instead, recipes chain through custom intermediate foods, butchered meats, and multi-tier tag hierarchies:
+$$\text{final food} \longrightarrow \text{intermediate food} \longrightarrow \text{recipe} \longrightarrow \text{tag} \longrightarrow \text{nested tag} \longrightarrow \text{base ingredient}$$
+
+The Recipe Provenance Graph (`RecipeProvenanceEngine`) recursively traces ingredient lineage down to concrete items and vanilla references. For example:
+- `pamhc2foodcore:hotdogitem` $\to$ `pamhc2foodcore:groundporkitem` $\to$ `#c:rawpork` $\to$ `minecraft:porkchop` (**Transitive Swine Verified**)
+- `pamhc2foodcore:chickendinneritem` $\to$ `pamhc2foodcore:friedchickenitem` $\to$ `#c:rawchicken` $\to$ `minecraft:chicken` (**Transitive Poultry Verified**)
+
+### 6.2 Mandatory vs. Alternative (Variable) Branch Semantics
+A fundamental principle of the provenance graph is distinguishing **mandatory** ingredients from **alternative** choices:
+- **Mandatory Ingredient**: An ingredient slot that requires swine/meat across all valid substitutions.
+  - Example: `hotdogitem` mandates `groundporkitem`. Every valid substitution is pork.
+  - Evaluation: Flagged as `HIGH_RISK_RESTRICTED` (priority 100).
+- **Alternative / Variable Branch**: An ingredient slot or tag providing multiple choices where some are swine/meat and others are plant, fish, or halal meat.
+  - Example: `farmersdelight:dumplings` accepts chicken, beef, or pork.
+  - Example: `pamhc2foodcore:stockitem` accepts `#c:rawmeats` (pork, beef, chicken, or fish).
+  - Evaluation: Flagged as `AMBIGUOUS_RECIPE` (priority 80–90) with `VARIABLE_PROVENANCE` evidence.
+
+### 6.3 Tool & Container Exclusion Policy
+Crafting recipes often include preparation tools, cooking surfaces, or packaging containers (e.g. `c:tools/knife`, `c:tools/skillet`, `c:tools/pot`, `minecraft:bowl`, `minecraft:bucket`).
+The engine automatically filters out tools and utility containers from ingredient evaluation so kitchen utensils never distort dietary classification.
+
+### 6.4 Cycle Detection & Depth Limits
+Minecraft crafting frequently introduces cycles (e.g. crate packing/unpacking `cabbage <-> cabbage_crate`, pie slicing `apple_pie <-> apple_pie_slice`, cutting `cabbage <-> cabbage_leaf`, and liquid bottling `milk_bucket <-> milk_bottle`):
+- **Cycle Detection (`PROVENANCE_CYCLE`)**: Tracks active traversal stacks and emits structured diagnostics on detection while safely pruning the cyclic edge.
+- **Depth Limits (`PROVENANCE_DEPTH_LIMIT`)**: Bounded by `--max-provenance-depth` (default 8) to prevent runaway execution in deep crafting webs.
+
+### 6.5 Lattice Propagation & Triage Integration
+Provenance facts integrate into the audit lattice:
+$$\text{Mandatory Swine (100)} > \text{Variable Swine / Ambiguous (80--90)} > \text{Mandatory Meat (70)} > \text{Fish Baseline (40)} > \text{Plant / Low-Risk (20--30)}$$
+
+---
+
+## 7. CLI Usage & Workflow
 
 ### Generic Invocations
 
@@ -134,6 +170,7 @@ python3 -m tools.compatibility.audit.cli \
   --jar /path/to/mod.jar \
   --mod-id <mod_id> \
   --pack <path_to_muslimqol_pack> \
+  --max-provenance-depth 8 \
   --output build/audit/<mod_id>
 
 # Or via wrapper script
@@ -161,16 +198,18 @@ Output highlights:
   - Clean: **True**
   - Classified in pack: 89
   - Missing: 0, Extra: 0, Duplicates: 0, Unknown IDs: 0, Diagnostics: 0
+- **Provenance Graph**: 33 transitive items, 4 variable provenance items, 30 cyclic edges handled, 0 depth limits hit.
 
 ### Generated Artifacts
 All files are generated under `build/audit/<mod_id>/` (automatically gitignored):
-- **`summary.json`**: High-level counts, SHA-256 hash, suggestion breakdown, pack validation report, and parser diagnostics.
-- **`evidence.json`**: Full per-item trace of all discovered facts, weights, recipes, and existing pack statuses.
-- **`review.md`**: Human-readable prioritized report grouping items by audit urgency, detailing conflicts, and displaying parser diagnostics.
+- **`summary.json`**: High-level counts, SHA-256 hash, suggestion breakdown, pack validation report, provenance summary, and parser diagnostics.
+- **`evidence.json`**: Full per-item trace of all discovered facts, weights, recipes, provenance trees, and existing pack statuses.
+- **`provenance.json`**: Dedicated JSON file detailing all recursive provenance paths, alternative branches, and rendered trees for every edible candidate.
+- **`review.md`**: Human-readable prioritized report grouping items by audit urgency, detailing conflicts, displaying parser diagnostics, and including full ASCII Recipe Provenance Trees.
 
 ---
 
-## 7. Python Test Suite
+## 8. Python Test Suite
 
 Run all unit tests with Python's standard `unittest`:
 
