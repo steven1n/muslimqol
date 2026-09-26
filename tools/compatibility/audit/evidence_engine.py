@@ -295,9 +295,13 @@ class EvidenceEngine:
                 has_recipe_meat = True
             if provenance.mandatory_fish:
                 has_recipe_fish = True
-            if provenance.is_pure_plant:
+            if provenance.mandatory_dairy_egg or provenance.variable_dairy_egg:
+                has_recipe_dairy_egg = True
+            if provenance.incomplete:
+                recipe_pure_plant = False
+            elif provenance.is_pure_plant:
                 recipe_pure_plant = True
-            elif has_recipe_swine or has_recipe_meat or has_recipe_fish or has_recipe_variable:
+            elif has_recipe_swine or has_recipe_meat or has_recipe_fish or has_recipe_dairy_egg or has_recipe_variable:
                 recipe_pure_plant = False
 
         # Name flags
@@ -440,24 +444,29 @@ class EvidenceEngine:
             confidence = Confidence.MEDIUM
             priority = 40
         # 5. Egg / Dairy / Audited Permissible Recipe
-        elif has_recipe_dairy_egg or has_tag_dairy_egg:
+        elif (has_recipe_dairy_egg or has_tag_dairy_egg or (provenance and (provenance.mandatory_dairy_egg or provenance.variable_dairy_egg))) and not (provenance and provenance.incomplete):
             category = SuggestionCategory.LIKELY_LOW_RISK_RECIPE
             confidence = Confidence.HIGH
             priority = 30
-        elif name_dairy_egg and not recipes:
+        elif name_dairy_egg and not recipes and not (provenance and provenance.incomplete):
             category = SuggestionCategory.LIKELY_LOW_RISK_RECIPE
             confidence = Confidence.MEDIUM
             priority = 30
         # 6. Pure Plant-Based
-        elif recipe_pure_plant or (provenance and provenance.is_pure_plant):
+        elif (recipe_pure_plant or (provenance and provenance.is_pure_plant)) and not (provenance and provenance.incomplete):
             category = SuggestionCategory.LIKELY_PLANT_BASED
             confidence = Confidence.HIGH
             priority = 20
-        elif name_plant and not recipes and not (name_dairy_egg or name_fish or name_seafood_review or name_meat or name_swine or name_alcohol):
+        elif name_plant and not recipes and not (name_dairy_egg or name_fish or name_seafood_review or name_meat or name_swine or name_alcohol) and not (provenance and provenance.incomplete):
             category = SuggestionCategory.LIKELY_PLANT_BASED
             confidence = Confidence.MEDIUM
             priority = 20
-        # 7. General Review / Conflicts / Alcohol
+        # 7. Incomplete Provenance
+        elif provenance and provenance.incomplete:
+            category = SuggestionCategory.GENERAL_REVIEW
+            confidence = Confidence.MEDIUM
+            priority = 65
+        # 8. General Review / Conflicts / Alcohol
         elif name_alcohol or has_name_exception or conflicts or (name_meat and not recipes):
             category = SuggestionCategory.GENERAL_REVIEW
             confidence = Confidence.MEDIUM

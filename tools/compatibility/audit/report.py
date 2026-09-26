@@ -306,8 +306,13 @@ def write_review_md(
             "",
         ])
         for r, prov in items_with_prov:
+            lines.append(
+                f"### `{r.item_id}` (`{r.suggestion.category.value}`, Priority: {r.suggestion.review_priority})"
+            )
+            if getattr(prov, "incomplete", False):
+                reasons = ", ".join(getattr(prov, "incomplete_reasons", []))
+                lines.append(f"> ⚠ Provenance incomplete: {reasons}")
             lines.extend([
-                f"### `{r.item_id}` (`{r.suggestion.category.value}`, Priority: {r.suggestion.review_priority})",
                 "```text",
                 prov.tree_text if hasattr(prov, "tree_text") else str(prov),
                 "```",
@@ -336,6 +341,9 @@ def write_review_md(
         if r.tags:
             lines.append(f"- **Tags**: {', '.join(f'`#{t}`' for t in sorted(r.tags))}")
         prov = r.provenance or (provenance_map.get(r.item_id) if provenance_map else None)
+        if prov and getattr(prov, "incomplete", False):
+            reasons = ", ".join(getattr(prov, "incomplete_reasons", []))
+            lines.append(f"> ⚠ Provenance incomplete: {reasons}")
         if prov and hasattr(prov, "tree_text") and prov.tree_text and "No external dietary provenance" not in prov.tree_text:
             lines.extend([
                 "- **Provenance Tree**:",

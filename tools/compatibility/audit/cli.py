@@ -115,11 +115,15 @@ def run_audit(
 
     items_with_transitive = sum(1 for p in prov_map.values() if p.has_transitive_evidence)
     items_with_variable = sum(1 for p in prov_map.values() if p.has_variable_provenance)
+    items_with_incomplete = sum(1 for p in prov_map.values() if p.incomplete)
     provenance_summary = {
         "items_with_transitive_evidence": items_with_transitive,
         "items_with_variable_provenance": items_with_variable,
+        "items_with_incomplete_provenance": items_with_incomplete,
         "cycles_detected": prov_engine.total_cycles_detected,
+        "cycle_truncations": prov_engine.total_cycle_truncations,
         "depth_limits_hit": prov_engine.total_depth_limits_hit,
+        "depth_limit_truncations": prov_engine.total_depth_limit_truncations,
     }
 
     provenance_dict = {
@@ -162,6 +166,7 @@ def run_audit(
     print(f"\n--- Provenance Graph Metrics ---")
     print(f"  Items with transitive evidence: {items_with_transitive}")
     print(f"  Items with variable provenance: {items_with_variable}")
+    print(f"  Items with incomplete prov:     {items_with_incomplete}")
     print(f"  Cycles detected:                {prov_engine.total_cycles_detected}")
     print(f"  Depth limits hit:               {prov_engine.total_depth_limits_hit}")
 
