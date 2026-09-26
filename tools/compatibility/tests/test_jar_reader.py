@@ -114,5 +114,38 @@ class TestJarReader(unittest.TestCase):
         self.assertIn("java/lang/Object", strings)
 
 
+    def test_extract_food_properties_truncated_class(self):
+        # A class header with magic 0xCAFEBABE claiming 5 cp entries, but truncated
+        truncated = b"\xca\xfe\xba\xbe\x00\x00\x00\x41\x00\x05"
+        with self.assertRaises(ValueError):
+            extract_food_properties_fields(truncated)
+
+    def test_food_properties_diagnostic_emitted_on_malformed_class(self):
+        import os
+        import tempfile
+        import zipfile
+        from tools.compatibility.audit.jar_reader import read_mod_jar
+
+        with tempfile.NamedTemporaryFile(suffix=".jar", delete=False) as tmp:
+            jar_path = tmp.name
+
+        try:
+            with zipfile.ZipFile(jar_path, "w") as z:
+                z.writestr("assets/testmod/models/item/apple.json", "{}")
+                # Class starting with 0xCAFEBABE but truncated
+                z.writestr("testmod/CorruptClass.class", b"\xca\xfe\xba\xbe\x00\x00\x00\x41\x00\x05")
+
+            data = read_mod_jar(jar_path, "testmod")
+            self.assertEqual(data.total_items, ["testmod:apple"])
+            self.assertTrue(len(data.diagnostics) >= 1)
+            diagnostic = next(d for d in data.diagnostics if d.error_type == "FOOD_PROPERTIES_BYTECODE_PARSE_ERROR")
+            self.assertEqual(diagnostic.severity, "WARNING")
+            self.assertEqual(diagnostic.source_path, "testmod/CorruptClass.class")
+            self.assertIn("Truncated", diagnostic.message)
+        finally:
+            if os.path.exists(jar_path):
+                os.remove(jar_path)
+
+
 if __name__ == "__main__":
     unittest.main()
