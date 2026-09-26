@@ -62,17 +62,18 @@ In Farmer's Delight, the curated pack validation remains completely intact (89 /
 | :--- | :---: | :---: | :---: | :--- |
 | `HIGH_RISK_RESTRICTED` | 10 | 10 | 0 | Strict swine invariants preserved. |
 | `MEAT_PROVENANCE_REQUIRED` | 19 | 19 | 0 | Meat provenance items preserved. |
-| `LIKELY_PLANT_BASED` | 31 | 23 | **-8** | Items with dairy/egg provenance (e.g. `apple_pie`, `apple_pie_slice`, cookies with milk, cheesecake) correctly shift to `LIKELY_LOW_RISK_RECIPE`. |
-| `LIKELY_LOW_RISK_RECIPE` | 12 | 17 | **+5** | Correctly accommodates baked goods and composite items with verified dairy/egg components. |
+| `LIKELY_PLANT_BASED` | 31 | 20 | **-11** | Items with dairy/egg provenance (e.g. `apple_pie`, `apple_pie_slice`, baked goods with milk/egg) correctly shift to `LIKELY_LOW_RISK_RECIPE`. |
+| `LIKELY_LOW_RISK_RECIPE` | 12 | 18 | **+6** | Correctly accommodates baked goods and composite items with verified dairy/egg components. `apple_pie` included: dairy is mandatory (`pie_crust → #c:drinks/milk`). |
 | `FISH_REVIEW_BASELINE` | 10 | 10 | 0 | Scaled fish items. |
 | `SEAFOOD_REVIEW` | 1 | 1 | 0 | Squid ink pasta. |
-| `AMBIGUOUS_RECIPE` | 6 | 8 | **+2** | Dishes with alternative filling choices (e.g. dumpling/cabbage roll/stew variants). |
-| `GENERAL_REVIEW` | 0 | 0 | 0 | Zero items unresolved or conflicting. |
-| `NO_SIGNAL` | 0 | 1 | **+1** | Neutral items without dietary signal. |
+| `AMBIGUOUS_RECIPE` | 6 | 6 | 0 | Dishes with genuinely divergent dietary production alternatives (e.g. dumpling/cabbage roll/stew variants). Dairy presence alone does NOT cause ambiguity. |
+| `GENERAL_REVIEW` | 0 | 3 | **+3** | Items with cycles and no confirmed intrinsic identity (e.g. `pumpkin_slice`, `fruit_salad`, `pumpkin_pie_slice`). |
+| `NO_SIGNAL` | 0 | 2 | **+2** | Neutral items without dietary signal. |
 | **Total Edible Items** | **89** | **89** | **0** | **Pack Clean = True** |
 
 - **Pack Verification**: `muslimqol_farmersdelight` verified **Clean = True**, 0 missing, 0 extra, 0 duplicates, 0 unknown IDs, 0 diagnostics.
-- **Genuine Incompleteness vs Cycles**: While 13 items encounter reversible cutting/packaging cycles, **0 items are genuinely incomplete**—all cycles resolve through inherent item identity or parallel complete production recipes.
+- **Genuine Incompleteness vs Cycles**: While many items encounter reversible cutting/packaging cycles, **0 items are genuinely incomplete**—all cycles resolve through intrinsic tag-backed identity or parallel complete production recipes.
+- **Intrinsic Cycle Resolution**: Items with direct crop/fruit semantic tags (e.g. `c:crops/cabbage`) correctly resolve as plant-based in the cycle fallback. Composite processed foods (e.g. `apple_pie_slice`) without crop tags do NOT receive plant-origin identity from name tokens alone.
 
 ### 3.2 Pam's HarvestCraft 2 Food Core Comparison
 
@@ -216,16 +217,19 @@ farmersdelight:dumplings [VARIABLE]
 
 ### 5.5 Dairy Provenance Composite: `farmersdelight:apple_pie`
 ```text
-farmersdelight:apple_pie [VARIABLE]
-└── farmersdelight:pie_crust (TRANSITIVE)
-    ├── #c:milk (DAIRY)
-    └── #c:drinks/milk (DAIRY)
-        └── farmersdelight:milk_bottle (DAIRY)
-            └── minecraft:milk_bucket (DAIRY)
+farmersdelight:apple_pie [MANDATORY_DAIRY]
+├── Real recipe: pie_crust + apple + sugar + ...
+│   └── farmersdelight:pie_crust (TRANSITIVE)
+│       ├── #c:milk (DAIRY)
+│       └── #c:drinks/milk (DAIRY)
+│           └── farmersdelight:milk_bottle (DAIRY)
+│               └── minecraft:milk_bucket (DAIRY)
+└── Cycle recipe: 4x apple_pie_slice → apple_pie  [CYCLIC — not an independent origin]
 ```
-- **Evaluation**: Apple pie utilizes `pie_crust`, which requires `#c:milk` or `#c:drinks/milk` (resolving via `farmersdelight:milk_bottle` to `minecraft:milk_bucket`). Because consumed dairy is present, `is_pure_plant` is correctly `False`.
-- **Suggestion (depth 12 default)**: `AMBIGUOUS_RECIPE` (Review Priority 80) — at depth 12 the `pie_crust → #c:milk` dairy chain is fully traversed, triggering the ambiguous-recipe path. At depth 8 this chain was not fully resolved, yielding the shallower `LIKELY_LOW_RISK_RECIPE`; depth 12 is the more accurate result.
-- **Semantics**: Correctly distinguishes pure plant-based foods from dairy/egg baked goods, adhering strictly to project dietary semantics without hardcoding.
+- **Evaluation**: Apple pie utilizes `pie_crust`, which requires `#c:milk` or `#c:drinks/milk` (resolving via `farmersdelight:milk_bottle` to `minecraft:milk_bucket`). Because consumed dairy is **mandatory** across all non-cyclic recipes, `mandatory_dairy_egg=True` and `variable_dairy_egg=False`.
+- **Intrinsic Cycle Invariant**: The reconstruction recipe (`4x apple_pie_slice → apple_pie`) creates a cycle. The cycle fallback for `apple_pie_slice` evaluates it using `resolve_intrinsic_identity()` which requires **direct crop/plant tags** — NOT registry-name tokens. `apple_pie_slice` has tag `c:foods/pie` (not a crop-source tag), so it receives NO independent plant-origin identity. The dairy provenance from the real recipe is preserved.
+- **Suggestion**: `LIKELY_LOW_RISK_RECIPE` (Review Priority 30). Dairy is **mandatory**, not a divergent alternative — dairy presence does not cause ambiguity. Ambiguity requires genuinely divergent production alternatives in different dietary categories.
+- **Semantics**: Correctly distinguishes pure plant-based foods from dairy/egg baked goods without hardcoding item names.
 
 ---
 
@@ -276,7 +280,7 @@ $$\text{wheat} \to \text{flour} \to \text{dough} \to \text{bread} \to \text{toas
 |    16 |  0.379s |                0 |           0 |           0 | Exhaustive — zero incomplete |
 
   - At **depth 12** (default): `doughitem` bread chain fully resolved; 5 jelly-toast items (`applejellytoastitem` and friends) remain incomplete via `flouritem`/`saltitem`.
-  - Raising depth 8→12 also corrects `farmersdelight:apple_pie`: at depth 8 `pie_crust→#c:milk` was not fully traversed (result: `LIKELY_LOW_RISK_RECIPE`); at depth 12 the dairy path is discovered, yielding the more accurate `AMBIGUOUS_RECIPE`.
+  - `farmersdelight:apple_pie` correctly resolves to `LIKELY_LOW_RISK_RECIPE` at depth 12: the `pie_crust → #c:drinks/milk` dairy chain is found (mandatory_dairy_egg=True), and the `apple_pie_slice` cycle is correctly treated as non-evidentiary (no crop tag → no independent plant origin).
   - Depth cutoff is a conservative INCOMPLETE state — increasing depth never changes UNKNOWN into assumed-safe behavior.
   - Graph traversal remains linear and sub-second at all depths.
 
@@ -310,7 +314,13 @@ A comprehensive test suite in `tools/compatibility/tests/test_provenance.py` cov
 | `test_per_item_cycle_and_depth_metrics` | Item diagnostics do not accumulate engine-wide totals | **PASS** |
 | `test_dish_intermediate_mandatory_pork` | Single-branch intermediate pork remains mandatory=True | **PASS** |
 | `test_mandatory_swine_preserved_despite_depth_limit` | Hotdog pork remains mandatory despite deep bread cutoff | **PASS** |
+| `test_default_max_depth_is_12` | RecipeProvenanceEngine() default max_depth == 12 | **PASS** |
+| `test_apple_pie_slice_cycle_not_plant_origin` | apple_pie slice cycle MUST NOT grant independent plant-origin via name token | **PASS** |
+| `test_composite_name_tokens_not_plant_cycle_evidence` | chocolate_berry_pie_slice cycle not plant despite PLANT_HINTS tokens | **PASS** |
+| `test_crop_crate_cycle_resolves_as_plant` | cabbage↔cabbage_crate cycle resolves as plant via c:crops/cabbage tag | **PASS** |
+| `test_crop_without_tag_stays_incomplete_not_plant` | apple_pie_slice pure cycle with no crop tag stays incomplete | **PASS** |
 
+> **Total: 71 tests** — all PASS.
 ### Test Suite Execution
 ```bash
 python3 -m unittest discover tools/compatibility/tests/

@@ -660,5 +660,224 @@ class TestDefaultDepth(unittest.TestCase):
         )
 
 
+class TestIntrinsicCycleFallback(unittest.TestCase):
+    """
+    Regression tests for resolve_intrinsic_identity() cycle fallback.
+
+    Verifies the invariant:
+        INTRINSIC METADATA ≠ NAME HEURISTIC
+
+    A cyclic composite food (e.g. apple_pie_slice) must NOT receive
+    plant-origin identity solely because its registry name contains
+    plant tokens ("apple", "pie"). Plant identity in cycle fallback
+    requires direct semantic tag evidence (c:crops/*, c:fruits/*, etc.).
+    """
+
+    def _make_tag_registry_with_crop(self, item_id: str, crop_tag: str) -> TagRegistry:
+        """Helper: TagRegistry where item_id is directly in crop_tag."""
+        reg = TagRegistry()
+        reg.add_tag(crop_tag, {"values": [item_id]})
+        return reg
+
+    # ------------------------------------------------------------------
+    # Negative test: composite-name MUST NOT become intrinsic plant origin
+    # ------------------------------------------------------------------
+
+    def test_apple_pie_slice_cycle_not_plant_origin(self):
+        """
+        mod:apple_pie has Recipe A (via mod:pie_crust -> milk) and Recipe B (4x mod:apple_pie_slice).
+        Cutting: mod:apple_pie -> mod:apple_pie_slice (cycle).
+
+        The token "apple" inside "mod:apple_pie_slice" MUST NOT create an independent
+        plant production path. apple_pie must resolve to mandatory_dairy_egg=True,
+        variable_dairy_egg=False, suggestion=LIKELY_LOW_RISK_RECIPE.
+        """
+        # Recipe A: apple_pie <- pie_crust + apple + sugar
+        rec_pie_real = make_recipe(
+            "mod:recipe_apple_pie",
+            "mod:apple_pie",
+            [
+                make_item_ing("mod:pie_crust"),
+                make_item_ing("minecraft:apple"),
+                make_item_ing("minecraft:sugar"),
+            ],
+        )
+        # Recipe B: apple_pie <- 4x apple_pie_slice (cycle — slices reconstruct pie)
+        rec_pie_from_slices = make_recipe(
+            "mod:recipe_apple_pie_from_slices",
+            "mod:apple_pie",
+            [make_item_ing("mod:apple_pie_slice")],
+        )
+        # Cutting: apple_pie_slice <- apple_pie (cycle back)
+        rec_slice_from_pie = make_recipe(
+            "mod:cutting_apple_pie",
+            "mod:apple_pie_slice",
+            [make_item_ing("mod:apple_pie")],
+        )
+        # pie_crust <- milk_bucket (dairy)
+        rec_pie_crust = make_recipe(
+            "mod:recipe_pie_crust",
+            "mod:pie_crust",
+            [make_item_ing("minecraft:milk_bucket")],
+        )
+
+        recipes_by_output: Dict[str, List[ParsedRecipe]] = {
+            "mod:apple_pie": [rec_pie_real, rec_pie_from_slices],
+            "mod:apple_pie_slice": [rec_slice_from_pie],
+            "mod:pie_crust": [rec_pie_crust],
+        }
+
+        # Empty tag registry — no crop tags for apple_pie_slice
+        tag_registry = TagRegistry()
+        engine = RecipeProvenanceEngine(tag_registry, recipes_by_output, max_depth=12)
+        prov = engine.evaluate_item("mod:apple_pie")
+
+        self.assertTrue(
+            prov.mandatory_dairy_egg,
+            "apple_pie must have mandatory_dairy_egg=True: pie_crust requires milk_bucket",
+        )
+        self.assertFalse(
+            prov.variable_dairy_egg,
+            "apple_pie must have variable_dairy_egg=False: dairy is always required",
+        )
+        self.assertFalse(
+            prov.is_pure_plant,
+            "apple_pie must NOT be is_pure_plant: dairy provenance is present",
+        )
+        self.assertFalse(
+            prov.incomplete,
+            "apple_pie must not be incomplete: pie_crust->milk chain is resolvable",
+        )
+
+        # Verify the suggestion
+        ee = EvidenceEngine(tag_registry, recipes_by_output, provenance_engine=engine)
+        recipes = recipes_by_output.get("mod:apple_pie", [])
+        result = ee.analyze_item("mod:apple_pie", recipes, provenance=prov)
+        self.assertEqual(
+            result.suggestion.category,
+            SuggestionCategory.LIKELY_LOW_RISK_RECIPE,
+            "apple_pie with mandatory dairy must suggest LIKELY_LOW_RISK_RECIPE, not AMBIGUOUS",
+        )
+
+    def test_composite_name_tokens_not_plant_cycle_evidence(self):
+        """
+        An item named 'mod:chocolate_berry_pie_slice' has tokens 'chocolate', 'berry', 'pie'.
+        All three are PLANT_HINTS. If its only recipe is a cycle back to the parent pie,
+        the cycle fallback MUST NOT grant it plant-origin identity.
+        """
+        # chocolate_berry_pie <- 4x chocolate_berry_pie_slice (cycle)
+        rec_pie_from_slice = make_recipe(
+            "mod:pie_from_slices",
+            "mod:chocolate_berry_pie",
+            [make_item_ing("mod:chocolate_berry_pie_slice")],
+        )
+        # chocolate_berry_pie_slice <- chocolate_berry_pie (cycle back)
+        rec_slice_from_pie = make_recipe(
+            "mod:slice_from_pie",
+            "mod:chocolate_berry_pie_slice",
+            [make_item_ing("mod:chocolate_berry_pie")],
+        )
+        # chocolate_berry_pie <- egg + milk (direct dairy recipe)
+        rec_pie_real = make_recipe(
+            "mod:pie_real",
+            "mod:chocolate_berry_pie",
+            [
+                make_item_ing("minecraft:egg"),
+                make_item_ing("minecraft:milk_bucket"),
+            ],
+        )
+
+        recipes_by_output: Dict[str, List[ParsedRecipe]] = {
+            "mod:chocolate_berry_pie": [rec_pie_real, rec_pie_from_slice],
+            "mod:chocolate_berry_pie_slice": [rec_slice_from_pie],
+        }
+
+        tag_registry = TagRegistry()  # no crop tags for the slice
+        engine = RecipeProvenanceEngine(tag_registry, recipes_by_output, max_depth=12)
+        prov = engine.evaluate_item("mod:chocolate_berry_pie")
+
+        self.assertTrue(prov.mandatory_dairy_egg, "Pie with mandatory egg+milk must be mandatory_dairy_egg")
+        self.assertFalse(prov.variable_dairy_egg, "Dairy must not be variable when all real recipes require it")
+        self.assertFalse(prov.is_pure_plant, "Must not be pure plant when dairy is present")
+
+    # ------------------------------------------------------------------
+    # Positive test: valid crop↔crate cycle must resolve as plant
+    # ------------------------------------------------------------------
+
+    def test_crop_crate_cycle_resolves_as_plant(self):
+        """
+        mod:cabbage ↔ mod:cabbage_crate is a reversible storage cycle.
+        mod:cabbage has direct tag c:crops/cabbage.
+        The cycle fallback on mod:cabbage (when traversed via cabbage_crate -> cabbage)
+        must recognize it as a plant via its direct crop tag, not be left incomplete.
+        """
+        # cabbage_crate <- cabbage (packing)
+        rec_crate = make_recipe(
+            "mod:pack_cabbage",
+            "mod:cabbage_crate",
+            [make_item_ing("mod:cabbage")],
+        )
+        # cabbage <- cabbage_crate (unpacking — cycle)
+        rec_unpack = make_recipe(
+            "mod:unpack_cabbage",
+            "mod:cabbage",
+            [make_item_ing("mod:cabbage_crate")],
+        )
+
+        # Give cabbage a direct crop tag
+        tag_registry = self._make_tag_registry_with_crop("mod:cabbage", "c:crops/cabbage")
+
+        recipes_by_output: Dict[str, List[ParsedRecipe]] = {
+            "mod:cabbage_crate": [rec_crate],
+            "mod:cabbage": [rec_unpack],
+        }
+
+        engine = RecipeProvenanceEngine(tag_registry, recipes_by_output, max_depth=12)
+        prov = engine.evaluate_item("mod:cabbage_crate")
+
+        self.assertFalse(prov.mandatory_swine, "Cabbage crate must not have swine provenance")
+        self.assertFalse(prov.mandatory_meat, "Cabbage crate must not have meat provenance")
+        self.assertFalse(prov.mandatory_dairy_egg, "Cabbage crate must not have dairy provenance")
+        self.assertFalse(prov.incomplete, "Cabbage crate cycle must be resolved as plant (not incomplete)")
+        self.assertTrue(prov.is_pure_plant, "Cabbage crate must be recognized as plant via crop tag")
+
+    def test_crop_without_tag_stays_incomplete_not_plant(self):
+        """
+        mod:apple_pie_slice in a cycle with no direct crop tag must NOT be granted
+        plant-origin. Without tag evidence, cycle fallback falls through to incomplete.
+        """
+        # The slice and pie only reference each other
+        rec_slice = make_recipe(
+            "mod:slice_from_pie",
+            "mod:apple_pie_slice",
+            [make_item_ing("mod:apple_pie")],
+        )
+        rec_pie = make_recipe(
+            "mod:pie_from_slices",
+            "mod:apple_pie",
+            [make_item_ing("mod:apple_pie_slice")],
+        )
+
+        recipes_by_output: Dict[str, List[ParsedRecipe]] = {
+            "mod:apple_pie_slice": [rec_slice],
+            "mod:apple_pie": [rec_pie],
+        }
+
+        tag_registry = TagRegistry()  # no crop tags
+        engine = RecipeProvenanceEngine(tag_registry, recipes_by_output, max_depth=4)
+        prov = engine.evaluate_item("mod:apple_pie_slice")
+
+        # Must NOT be plant (no crop tag)
+        self.assertFalse(
+            prov.is_pure_plant,
+            "apple_pie_slice without crop tag must NOT be is_pure_plant in cycle fallback",
+        )
+        # Must be incomplete (cyclic, no intrinsic identity resolvable)
+        self.assertTrue(
+            prov.incomplete,
+            "apple_pie_slice cycle with no intrinsic identity must be incomplete",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

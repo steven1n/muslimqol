@@ -212,7 +212,13 @@ def is_dairy_egg_item_or_tag(signal: str) -> bool:
 
 
 def is_plant_item_or_tag(signal: str) -> bool:
-    """Token-safe check for strictly plant/fungal/crop signals."""
+    """Token-safe check for strictly plant/fungal/crop signals.
+
+    NOTE: This function uses registry-name keyword heuristics and is ONLY valid
+    for terminal items that have no recipes (base ingredients). It MUST NOT be
+    used in cycle-fallback resolution for composite food items.
+    Use resolve_intrinsic_identity() instead for cycle fallback.
+    """
     clean = signal[1:] if signal.startswith("#") else signal
     if (is_swine_item_or_tag(clean) or is_meat_item_or_tag(clean) or
             is_fish_item_or_tag(clean) or is_seafood_review_item_or_tag(clean) or
@@ -220,6 +226,59 @@ def is_plant_item_or_tag(signal: str) -> bool:
         return False
     tokens = set(tokenize_identifier(clean))
     return bool(tokens & PLANT_HINTS)
+
+
+# Tag prefixes that denote direct crop / plant-source provenance.
+# These are semantically strong: an item tagged c:crops/apple IS a raw crop.
+# c:foods/* alone is NOT sufficient — it covers processed composites too.
+_INTRINSIC_PLANT_TAG_PREFIXES: Tuple[str, ...] = (
+    "c:crops",
+    "c:fruits",
+    "c:foods/vegetable",
+    "c:foods/fruit",
+    "c:foods/crop",
+    "minecraft:villager_plantable_seeds",
+    "minecraft:crops",
+    "forge:crops",
+    "createaddition:plant_foods",
+    "createaddition:plants",
+)
+
+
+def resolve_intrinsic_identity(
+    item_id: str,
+    tag_registry: "TagRegistry",
+) -> Tuple[bool, bool, bool, bool, bool]:
+    """Resolve the intrinsic dietary identity of an item for cycle-fallback only.
+
+    Returns (swine, meat, fish, dairy, plant) using STRONG METADATA ONLY:
+      - Hazard signals (swine/meat/fish/dairy): exact item sets + name heuristics
+        (conservative — false positives are safe).
+      - Plant identity: direct semantic tags from TagRegistry ONLY.
+        Registry-name keyword heuristics (PLANT_HINTS) are NOT used here to
+        avoid fabricating plant-origin for composite processed foods like
+        apple_pie_slice (contains "apple" token but is NOT a raw crop).
+
+    Callers must NOT use this for non-cycle items; use is_plant_item_or_tag()
+    for genuine terminal ingredients.
+    """
+    swine = is_swine_item_or_tag(item_id)
+    meat = is_meat_item_or_tag(item_id)
+    fish = is_fish_item_or_tag(item_id)
+    dairy = is_dairy_egg_item_or_tag(item_id)
+
+    if swine or meat or fish or dairy:
+        return swine, meat, fish, dairy, False
+
+    # Plant identity requires direct tag-based evidence, not name heuristics.
+    item_tags = tag_registry.get_tags_for_item(item_id)
+    plant = any(
+        tag.startswith(prefix)
+        for tag in item_tags
+        for prefix in _INTRINSIC_PLANT_TAG_PREFIXES
+    )
+    return False, False, False, False, plant
+
 
 
 class ProvenanceNodeType(str, Enum):
@@ -652,12 +711,13 @@ class RecipeProvenanceEngine:
         if not viable_recipes:
             # All available recipes for this item are cyclic back to the current traversal path
             # (e.g. packaging crates, slicing/recombining, bottling/bucketing).
-            # If the item has an inherent recognized identity, resolve it to its inherent identity.
-            swine = is_swine_item_or_tag(item_id)
-            meat = is_meat_item_or_tag(item_id)
-            fish = is_fish_item_or_tag(item_id)
-            dairy = is_dairy_egg_item_or_tag(item_id)
-            plant = is_plant_item_or_tag(item_id)
+            # Use resolve_intrinsic_identity() — NOT is_plant_item_or_tag() — to establish
+            # inherent identity. Name-heuristic plant detection is forbidden here because
+            # composite food names (e.g. "apple_pie_slice") contain plant tokens ("apple")
+            # that do NOT represent an independent plant-origin production path.
+            swine, meat, fish, dairy, plant = resolve_intrinsic_identity(
+                item_id, self.tag_registry
+            )
             neutral = is_neutral_seasoning_or_liquid(item_id)
             tool = is_tool(item_id)
             cont = is_container(item_id)
