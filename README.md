@@ -67,6 +67,20 @@ When uncertain, items always safely resolve to `UNKNOWN` without guessing.
 
 ---
 
+## Qibla Direction
+
+MuslimQoL includes an offline, client-private Qibla direction indicator:
+
+- **Great-circle bearing calculation**: Spherical initial bearing from manually configured observer coordinates to the Kaaba (`21.4225° N, 39.8262° E`).
+- **Client-side privacy**: Coordinates are configured only on the client (`muslimqol-client.toml`), never sent over the network or stored on multiplayer servers.
+- **Offline operation**: Zero external API calls, IP lookups, or GPS dependencies.
+- **HUD direction indicator**: Minimal, unobtrusive on-screen bearing and relative directional compass marker.
+- **World orientation convention**: Maps Minecraft North (`-Z`) to geographic North (`0°`).
+
+For full mathematical specifications, privacy model, and configuration instructions, see [docs/features/qibla.md](docs/features/qibla.md).
+
+---
+
 ## Screenshots
 
 > Screenshots coming before the first public mod-platform release.
