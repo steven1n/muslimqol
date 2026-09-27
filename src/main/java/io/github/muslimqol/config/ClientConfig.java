@@ -17,6 +17,12 @@ public final class ClientConfig {
     public static final ModConfigSpec.BooleanValue SHOW_DOUBTFUL_ICON;
     public static final ModConfigSpec.BooleanValue SHOW_UNKNOWN_ICON;
 
+    public static final ModConfigSpec.BooleanValue QIBLA_ENABLED;
+    public static final ModConfigSpec.BooleanValue QIBLA_LOCATION_CONFIGURED;
+    public static final ModConfigSpec.DoubleValue QIBLA_LATITUDE;
+    public static final ModConfigSpec.DoubleValue QIBLA_LONGITUDE;
+    public static final ModConfigSpec.BooleanValue QIBLA_HUD_ENABLED;
+
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
 
@@ -49,6 +55,31 @@ public final class ClientConfig {
         SHOW_UNKNOWN_ICON = builder
                 .comment("Render icon for Unknown food (default false to avoid visual clutter)")
                 .define("show_unknown_icon", false);
+
+        builder.pop();
+
+        builder.comment("Qibla direction and client-side observer location").push("qibla");
+
+        QIBLA_ENABLED = builder
+                .comment("Master switch for Qibla direction feature")
+                .define("enabled", true);
+
+        QIBLA_LOCATION_CONFIGURED = builder
+                .comment("Explicit flag indicating whether real-world observer coordinates have been manually configured.",
+                        "Coordinates are strictly client-side and never transmitted over the network.")
+                .define("location_configured", false);
+
+        QIBLA_LATITUDE = builder
+                .comment("Observer latitude in decimal degrees (-90.0 to +90.0). Positive = North, Negative = South.")
+                .defineInRange("latitude", 0.0, -90.0, 90.0);
+
+        QIBLA_LONGITUDE = builder
+                .comment("Observer longitude in decimal degrees (-180.0 to +180.0). Positive = East, Negative = West.")
+                .defineInRange("longitude", 0.0, -180.0, 180.0);
+
+        QIBLA_HUD_ENABLED = builder
+                .comment("Show Qibla direction indicator on the HUD")
+                .define("hud_enabled", true);
 
         builder.pop();
 
