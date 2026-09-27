@@ -21,6 +21,11 @@ import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
+import io.github.muslimqol.compat.CompatibilityPackState;
+import io.github.muslimqol.compat.CompatibilityVerificationStatus;
+
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -46,7 +51,7 @@ public class MuslimQolCommands {
                                 .executes(ctx -> showProviders(ctx.getSource()))
                         )
                         .then(Commands.literal("compat")
-                                .executes(ctx -> showProviders(ctx.getSource()))
+                                .executes(ctx -> showCompatibility(ctx.getSource()))
                         )
                         .then(Commands.literal("reload")
                                 .requires(source -> source.hasPermission(2))
@@ -142,6 +147,70 @@ public class MuslimQolCommands {
         }
 
         return 1;
+    }
+
+    private static int showCompatibility(CommandSourceStack source) {
+        CompatibilitySnapshot snapshot = FoodCompatibilityManager.getActiveSnapshot();
+        source.sendSuccess(() -> Component.translatable("commands.muslimqol.providers.packs_header"), false);
+
+        List<String> lines = formatCompatibilityDiagnostics(snapshot);
+        for (String line : lines) {
+            source.sendSuccess(() -> Component.literal(line), false);
+        }
+        return 1;
+    }
+
+    public static List<String> formatCompatibilityDiagnostics(CompatibilitySnapshot snapshot) {
+        List<String> lines = new ArrayList<>();
+        Map<String, CompatibilityPackState> packStates = snapshot.getPackStates();
+        if (packStates.isEmpty()) {
+            Map<String, CompatibilityMetadata> active = snapshot.getActivePacks();
+            Map<String, CompatibilityMetadata> skipped = snapshot.getSkippedPacks();
+            if (active.isEmpty() && skipped.isEmpty()) {
+                lines.add("No compatibility packs installed.");
+                return lines;
+            }
+            for (var e : active.entrySet()) {
+                CompatibilityPackState state = FoodCompatibilityManager.evaluatePack(e.getKey(), e.getValue());
+                lines.addAll(formatPackDiagnostics(state));
+            }
+            for (var e : skipped.entrySet()) {
+                lines.addAll(formatPackDiagnostics(new CompatibilityPackState(
+                        e.getKey(), e.getValue(), CompatibilityVerificationStatus.SKIPPED, null
+                )));
+            }
+            return lines;
+        }
+
+        for (CompatibilityPackState state : packStates.values()) {
+            lines.addAll(formatPackDiagnostics(state));
+        }
+        return lines;
+    }
+
+    public static List<String> formatPackDiagnostics(CompatibilityPackState state) {
+        List<String> lines = new ArrayList<>();
+        lines.add(state.metadata().name());
+        String target = state.metadata().targetVersion() != null ? state.metadata().targetVersion() : "unspecified";
+        lines.add("  Target: " + target);
+        String installed;
+        if (state.isSkipped()) {
+            installed = state.metadata().targetMod() != null
+                    ? "missing mod (" + state.metadata().targetMod() + ")"
+                    : "absent";
+        } else {
+            installed = state.installedVersion() != null ? state.installedVersion() : "unknown";
+        }
+        lines.add("  Installed: " + installed);
+        String statusStr = switch (state.verificationStatus()) {
+            case VERIFIED -> state.metadata().targetVersion() != null
+                    ? "VERIFIED"
+                    : "VERIFIED (legacy unversioned pack)";
+            case UNVERIFIED -> "UNVERIFIED";
+            case SKIPPED -> "SKIPPED";
+        };
+        lines.add("  Status: " + statusStr);
+        return lines;
     }
 
     private static int reloadMod(CommandSourceStack source) {

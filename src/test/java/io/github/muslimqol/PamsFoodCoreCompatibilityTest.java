@@ -101,6 +101,8 @@ class PamsFoodCoreCompatibilityTest {
             assertEquals(1, meta.format());
             assertEquals("MuslimQoL Pam's HarvestCraft 2 Food Core Compatibility", meta.name());
             assertEquals(TARGET_MOD, meta.targetMod());
+            assertEquals("1.0.4", meta.targetVersion());
+            assertEquals("acd5dd380eafc3f317b67231a2355c204cab254dfdf4ab1f25c084fdd3d317b9", meta.referenceJarSha256());
         }
     }
 

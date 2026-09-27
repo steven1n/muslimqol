@@ -107,6 +107,8 @@ class FarmersDelightCompatibilityTest {
             assertEquals(1, meta.format());
             assertEquals("MuslimQoL Farmer's Delight Compatibility", meta.name());
             assertEquals(TARGET_MOD, meta.targetMod());
+            assertEquals("1.3.4", meta.targetVersion());
+            assertEquals("139ad7696462c89c03eea463f805abffa552526c5dadaadae221dd9624cb197c", meta.referenceJarSha256());
         }
     }
 

@@ -42,6 +42,7 @@ public final class FoodCompatibilityManager {
 
     // Default ModList loader checker safely guarded against offline test execution
     private static Predicate<String> modLoadedChecker = FoodCompatibilityManager::defaultIsModLoaded;
+    private static ModVersionResolver modVersionResolver = FoodCompatibilityManager::defaultModVersionResolver;
 
     // Registered custom providers maintained as an ordered map of id -> provider
     private static final Map<ClassificationProviderId, FoodClassificationProvider> CUSTOM_PROVIDERS = new LinkedHashMap<>();
@@ -64,8 +65,26 @@ public final class FoodCompatibilityManager {
         }
     }
 
+    private static Optional<String> defaultModVersionResolver(String modId) {
+        try {
+            var modList = net.neoforged.fml.ModList.get();
+            if (modList != null) {
+                var container = modList.getModContainerById(modId);
+                if (container != null && container.isPresent()) {
+                    var version = container.get().getModInfo().getVersion();
+                    return version != null ? Optional.of(version.toString()) : Optional.empty();
+                }
+            }
+        } catch (Throwable ignored) {}
+        return Optional.empty();
+    }
+
     public static void setModLoadedChecker(Predicate<String> checker) {
         modLoadedChecker = checker != null ? checker : FoodCompatibilityManager::defaultIsModLoaded;
+    }
+
+    public static void setModVersionResolver(ModVersionResolver resolver) {
+        modVersionResolver = resolver != null ? resolver : FoodCompatibilityManager::defaultModVersionResolver;
     }
 
     public static boolean isModLoaded(String modId) {
@@ -73,6 +92,53 @@ public final class FoodCompatibilityManager {
             return true;
         }
         return modLoadedChecker.test(modId);
+    }
+
+    public static Optional<String> resolveModVersion(String modId) {
+        if (modId == null || modId.isBlank()) {
+            return Optional.empty();
+        }
+        return modVersionResolver.resolve(modId);
+    }
+
+    /**
+     * Evaluates the deterministic runtime verification state of a compatibility pack.
+     *
+     * @param namespace Datapack namespace containing the pack
+     * @param meta Compatibility metadata
+     * @return Deterministic CompatibilityPackState
+     */
+    public static CompatibilityPackState evaluatePack(String namespace, CompatibilityMetadata meta) {
+        Objects.requireNonNull(namespace, "namespace must not be null");
+        Objects.requireNonNull(meta, "metadata must not be null");
+
+        if (meta.format() < 0) {
+            return new CompatibilityPackState(namespace, meta, CompatibilityVerificationStatus.SKIPPED, null);
+        }
+
+        String targetMod = meta.targetMod();
+        if (targetMod != null && !targetMod.isBlank()) {
+            if (!isModLoaded(targetMod)) {
+                return new CompatibilityPackState(namespace, meta, CompatibilityVerificationStatus.SKIPPED, null);
+            }
+        }
+
+        String installedVersion = (targetMod != null && !targetMod.isBlank())
+                ? resolveModVersion(targetMod).orElse(null)
+                : null;
+
+        CompatibilityVerificationStatus status;
+        if (meta.targetVersion() == null || meta.targetVersion().isBlank()) {
+            status = CompatibilityVerificationStatus.VERIFIED;
+        } else {
+            if (installedVersion != null && installedVersion.equals(meta.targetVersion())) {
+                status = CompatibilityVerificationStatus.VERIFIED;
+            } else {
+                status = CompatibilityVerificationStatus.UNVERIFIED;
+            }
+        }
+
+        return new CompatibilityPackState(namespace, meta, status, installedVersion);
     }
 
     public static boolean isReserved(ClassificationProviderId id) {
@@ -239,12 +305,27 @@ public final class FoodCompatibilityManager {
             Map<String, CompatibilityMetadata> active,
             Map<String, CompatibilityMetadata> skipped
     ) {
+        Map<String, CompatibilityPackState> packStates = new LinkedHashMap<>();
+        if (active != null) {
+            for (var entry : active.entrySet()) {
+                packStates.put(entry.getKey(), evaluatePack(entry.getKey(), entry.getValue()));
+            }
+        }
+        if (skipped != null) {
+            for (var entry : skipped.entrySet()) {
+                packStates.put(entry.getKey(), new CompatibilityPackState(
+                        entry.getKey(), entry.getValue(), CompatibilityVerificationStatus.SKIPPED, null
+                ));
+            }
+        }
+
         ClassificationRuntimeState current = FoodClassificationRegistry.getRuntimeState();
         ClassificationRuntimeState next = new ClassificationRuntimeState(
                 current.datapackEntries(),
                 current.userOverrides(),
                 active,
-                skipped
+                skipped,
+                packStates
         );
         FoodClassificationRegistry.applyRuntimeState(next);
     }
@@ -257,6 +338,8 @@ public final class FoodCompatibilityManager {
     }
 
     public static synchronized void resetToDefaults(ClassificationRuntimeState state) {
+        modLoadedChecker = FoodCompatibilityManager::defaultIsModLoaded;
+        modVersionResolver = FoodCompatibilityManager::defaultModVersionResolver;
         CUSTOM_PROVIDERS.clear();
         rebuildSnapshot(state);
     }

@@ -119,21 +119,44 @@ data/<namespace>/muslimqol/compatibility.json
 ```json
 {
   "format": 1,
-  "name": "Farmer's Delight Compatibility",
-  "target_mod": "farmersdelight"
+  "name": "MuslimQoL Pam's HarvestCraft 2 Food Core Compatibility",
+  "target_mod": "pamhc2foodcore",
+  "target_version": "1.0.4",
+  "reference_jar_sha256": "acd5dd380eafc3f317b67231a2355c204cab254dfdf4ab1f25c084fdd3d317b9"
 }
 ```
+
+- `format` (int, required): Format specification number (currently `1`).
+- `name` (string, optional): Human-readable pack title.
+- `target_mod` (string, optional): Mod ID required for activation (null for universal packs).
+- `target_version` (string, optional): Target mod version audited against (null for unversioned legacy packs).
+- `reference_jar_sha256` (string, optional): 64-character hexadecimal SHA-256 hash of the audited reference JAR (informational audit provenance; MuslimQoL does not hash installed mod JARs at runtime).
+
+### Runtime Trust States (`CompatibilityVerificationStatus`)
+
+When evaluating loaded compatibility packs, the engine establishes a deterministic verification state:
+
+1. **`VERIFIED`**:
+   - `target_mod` is loaded and its installed version exactly matches `target_version`.
+   - Legacy packs without `target_version` load as `VERIFIED (legacy unversioned pack)`.
+2. **`UNVERIFIED`**:
+   - `target_mod` is loaded, but its installed version differs from `target_version` (or could not be determined).
+   - The pack **remains active by default**, ensuring gameplay continues uninterrupted. A warning is logged:
+     ```text
+     Compatibility pack '...' was audited for <mod> <target_version>, but installed version is <installed_version>. The pack remains active but is UNVERIFIED for this version.
+     ```
+   - *Note*: `UNVERIFIED` does not imply incompatibility; it signals that the specific installed version has not yet been audited.
+3. **`SKIPPED`**:
+   - `target_mod` is not loaded, or the metadata is invalid. The pack is completely inactive.
+
+> [!NOTE]
+> A declared `target_version` is evidence of the version the pack was audited against, not evidence of the version currently installed. Compatibility states constructed without runtime version information are conservatively `UNVERIFIED` for versioned packs.
 
 ### Parse States (`MetadataParseResult`)
 The loader classifies pack metadata into three distinct states:
 1. **`Absent`**: No `compatibility.json` descriptor present. The datapack is treated as a standard v0.1 legacy pack and loads unconditionally.
-2. **`Valid`**: Contains valid format `1` metadata.
-   - If `target_mod` is installed: Loaded and active.
-   - If `target_mod` is not installed: Safely skipped at reload time with an informational log:
-     ```text
-     Skipped compatibility pack 'Farmer's Delight Compatibility' (farmersdelight) because target mod 'farmersdelight' is not loaded
-     ```
-3. **`Invalid`**: Unsupported format version (e.g. `999` or non-positive value), malformed JSON, or non-object root.
+2. **`Valid`**: Contains valid format `1` metadata. Evaluated via `CompatibilityVerificationStatus`.
+3. **`Invalid`**: Unsupported format version (e.g. `999` or non-positive value), malformed JSON, invalid string types, or malformed SHA-256 strings.
    - MuslimQoL **skips all food classifications from that namespace** and logs a warning:
      ```text
      Skipping compatibility classifications for namespace 'futurepack' due to invalid metadata: Unsupported format version: 999
