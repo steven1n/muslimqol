@@ -23,6 +23,21 @@ public final class ClientConfig {
     public static final ModConfigSpec.DoubleValue QIBLA_LONGITUDE;
     public static final ModConfigSpec.BooleanValue QIBLA_HUD_ENABLED;
 
+    public static final ModConfigSpec.BooleanValue PRAYER_ENABLED;
+    public static final ModConfigSpec.ConfigValue<String> PRAYER_ZONE_ID;
+    public static final ModConfigSpec.ConfigValue<String> PRAYER_CALCULATION_METHOD;
+    public static final ModConfigSpec.DoubleValue PRAYER_CUSTOM_FAJR_ANGLE;
+    public static final ModConfigSpec.DoubleValue PRAYER_CUSTOM_ISHA_ANGLE;
+    public static final ModConfigSpec.ConfigValue<String> PRAYER_ASR_METHOD;
+    public static final ModConfigSpec.ConfigValue<String> PRAYER_HIGH_LATITUDE_RULE;
+
+    public static final ModConfigSpec.IntValue PRAYER_ADJUST_FAJR;
+    public static final ModConfigSpec.IntValue PRAYER_ADJUST_SUNRISE;
+    public static final ModConfigSpec.IntValue PRAYER_ADJUST_DHUHR;
+    public static final ModConfigSpec.IntValue PRAYER_ADJUST_ASR;
+    public static final ModConfigSpec.IntValue PRAYER_ADJUST_MAGHRIB;
+    public static final ModConfigSpec.IntValue PRAYER_ADJUST_ISHA;
+
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
 
@@ -80,6 +95,63 @@ public final class ClientConfig {
         QIBLA_HUD_ENABLED = builder
                 .comment("Show Qibla direction indicator on the HUD")
                 .define("hud_enabled", true);
+
+        builder.pop();
+
+        builder.comment("Prayer time calculation settings (client-only, offline, reuses qibla observer coordinates)").push("prayer");
+
+        PRAYER_ENABLED = builder
+                .comment("Master switch for daily prayer time calculation")
+                .define("enabled", true);
+
+        PRAYER_ZONE_ID = builder
+                .comment("Explicit IANA time zone ID (e.g., 'Europe/London', 'America/New_York', 'Asia/Tokyo').",
+                        "Leave blank ('') to use the operating system's default time zone.")
+                .define("zone_id", "");
+
+        PRAYER_CALCULATION_METHOD = builder
+                .comment("Prayer calculation preset: MUSLIM_WORLD_LEAGUE, EGYPTIAN, KARACHI, NORTH_AMERICA, KUWAIT, SINGAPORE, DUBAI, or CUSTOM.")
+                .define("calculation_method", "MUSLIM_WORLD_LEAGUE");
+
+        PRAYER_CUSTOM_FAJR_ANGLE = builder
+                .comment("Custom solar depression angle for Fajr in degrees (1.0 to 30.0), used when calculation_method is CUSTOM.")
+                .defineInRange("custom_fajr_angle", 18.0, 1.0, 30.0);
+
+        PRAYER_CUSTOM_ISHA_ANGLE = builder
+                .comment("Custom solar depression angle for Isha in degrees (1.0 to 30.0), used when calculation_method is CUSTOM.")
+                .defineInRange("custom_isha_angle", 17.0, 1.0, 30.0);
+
+        PRAYER_ASR_METHOD = builder
+                .comment("Asr juristic shadow-factor method: STANDARD (shadow factor 1) or HANAFI (shadow factor 2).")
+                .define("asr_method", "STANDARD");
+
+        PRAYER_HIGH_LATITUDE_RULE = builder
+                .comment("High-latitude twilight fallback rule: NONE, MIDDLE_OF_NIGHT, SEVENTH_OF_NIGHT, or TWILIGHT_ANGLE.")
+                .define("high_latitude_rule", "MIDDLE_OF_NIGHT");
+
+        PRAYER_ADJUST_FAJR = builder
+                .comment("Minute offset adjustment for Fajr (-60 to +60)")
+                .defineInRange("fajr_adjustment_minutes", 0, -60, 60);
+
+        PRAYER_ADJUST_SUNRISE = builder
+                .comment("Minute offset adjustment for Sunrise (-60 to +60)")
+                .defineInRange("sunrise_adjustment_minutes", 0, -60, 60);
+
+        PRAYER_ADJUST_DHUHR = builder
+                .comment("Minute offset adjustment for Dhuhr (-60 to +60)")
+                .defineInRange("dhuhr_adjustment_minutes", 0, -60, 60);
+
+        PRAYER_ADJUST_ASR = builder
+                .comment("Minute offset adjustment for Asr (-60 to +60)")
+                .defineInRange("asr_adjustment_minutes", 0, -60, 60);
+
+        PRAYER_ADJUST_MAGHRIB = builder
+                .comment("Minute offset adjustment for Maghrib (-60 to +60)")
+                .defineInRange("maghrib_adjustment_minutes", 0, -60, 60);
+
+        PRAYER_ADJUST_ISHA = builder
+                .comment("Minute offset adjustment for Isha (-60 to +60)")
+                .defineInRange("isha_adjustment_minutes", 0, -60, 60);
 
         builder.pop();
 

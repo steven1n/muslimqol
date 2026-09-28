@@ -39,6 +39,7 @@
   "commands.muslimqol.classify.candidates_header": "Candidates / Overridden:",
   "commands.muslimqol.classify.conflict": "Conflict: %s",
   "commands.muslimqol.providers.header": "Registered classification providers:",
+  "commands.muslimqol.providers.packs_header": "Compatibility Packs:",
   "commands.muslimqol.reload.success": "MuslimQoL configuration and overrides reloaded successfully.",
 
   "hud.muslimqol.qibla": "Qibla %s",
@@ -48,5 +49,19 @@
   "config.muslimqol.qibla.location_configured": "Observer location configured",
   "config.muslimqol.qibla.latitude": "Observer latitude (-90° to +90°)",
   "config.muslimqol.qibla.longitude": "Observer longitude (-180° to +180°)",
-  "config.muslimqol.qibla.hud_enabled": "Enable Qibla HUD overlay"
+  "config.muslimqol.qibla.hud_enabled": "Enable Qibla HUD overlay",
+
+  "prayer.muslimqol.fajr": "Fajr",
+  "prayer.muslimqol.sunrise": "Sunrise",
+  "prayer.muslimqol.dhuhr": "Dhuhr",
+  "prayer.muslimqol.asr": "Asr",
+  "prayer.muslimqol.maghrib": "Maghrib",
+  "prayer.muslimqol.isha": "Isha",
+  "config.muslimqol.prayer.enabled": "Enable prayer time calculations",
+  "config.muslimqol.prayer.zone_id": "Time zone ID (IANA format, blank for system default)",
+  "config.muslimqol.prayer.calculation_method": "Prayer calculation method",
+  "config.muslimqol.prayer.custom_fajr_angle": "Custom Fajr twilight angle (degrees)",
+  "config.muslimqol.prayer.custom_isha_angle": "Custom Isha twilight angle (degrees)",
+  "config.muslimqol.prayer.asr_method": "Asr juristic method (STANDARD or HANAFI)",
+  "config.muslimqol.prayer.high_latitude_rule": "High-latitude twilight adjustment rule"
 }
