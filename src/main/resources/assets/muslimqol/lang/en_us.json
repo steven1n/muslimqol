@@ -63,5 +63,23 @@
   "config.muslimqol.prayer.custom_fajr_angle": "Custom Fajr twilight angle (degrees)",
   "config.muslimqol.prayer.custom_isha_angle": "Custom Isha twilight angle (degrees)",
   "config.muslimqol.prayer.asr_method": "Asr juristic method (STANDARD or HANAFI)",
-  "config.muslimqol.prayer.high_latitude_rule": "High-latitude twilight adjustment rule"
+  "config.muslimqol.prayer.high_latitude_rule": "High-latitude twilight adjustment rule",
+  "config.muslimqol.prayer.salah_hud_enabled": "Enable next-prayer Salah HUD overlay",
+  "config.muslimqol.prayer.notifications_enabled": "Enable Salah reminder notifications",
+  "config.muslimqol.prayer.advance_notification_enabled": "Enable advance Salah reminder",
+  "config.muslimqol.prayer.advance_notification_minutes": "Advance reminder lead time (minutes, 0 to 60)",
+  "config.muslimqol.prayer.start_notification_enabled": "Enable prayer-start reminder",
+  "config.muslimqol.prayer.notify_fajr": "Notify for Fajr",
+  "config.muslimqol.prayer.notify_dhuhr": "Notify for Dhuhr",
+  "config.muslimqol.prayer.notify_asr": "Notify for Asr",
+  "config.muslimqol.prayer.notify_maghrib": "Notify for Maghrib",
+  "config.muslimqol.prayer.notify_isha": "Notify for Isha",
+
+  "hud.muslimqol.salah.next": "Next: %s %s",
+  "hud.muslimqol.salah.countdown": "in %s",
+
+  "notification.muslimqol.salah.upcoming.title": "%s",
+  "notification.muslimqol.salah.upcoming.body": "Prayer in %s minutes",
+  "notification.muslimqol.salah.started.title": "%s",
+  "notification.muslimqol.salah.started.body": "Prayer time has begun"
 }
