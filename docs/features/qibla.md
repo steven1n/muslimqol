@@ -148,3 +148,24 @@ Configure observer coordinates in `config/muslimqol-client.toml`:
 ## 8. Limitations & Scope
 
 MuslimQoL Qibla calculation is a mathematical initial great-circle bearing from manually entered geographic coordinates under the Minecraft North (-Z) convention. It is not a real-world sensor, GPS device, or certified religious instrument.
+
+---
+
+## 9. Verification & QA Status (0.3 Freeze)
+
+- **Automated Tests**: `AUTOMATED PASS`
+- **Client Boot**: `CLIENT BOOT PASS`
+- **Dedicated Server Runtime**: `DEDICATED SERVER RUNTIME PASS`
+- **Manual HUD QA**: `MANUAL PASS`
+  - Absolute bearing display: `PASS`
+  - Aligned state: `PASS`
+  - Centered aligned marker: `PASS`
+  - Qibla right indication: `PASS`
+  - Qibla left indication: `PASS`
+  - Behind state: `PASS`
+  - Directional sign convention: `PASS`
+  - HUD visual rendering: `PASS`
+  - F3/debug HUD suppression: `PASS`
+  - `location_configured=false` hides HUD: `PASS`
+  - `hud_enabled=false` hides HUD: `PASS`
+
