@@ -39,6 +39,14 @@
   "commands.muslimqol.classify.candidates_header": "Candidates / Overridden:",
   "commands.muslimqol.classify.conflict": "Conflict: %s",
   "commands.muslimqol.providers.header": "Registered classification providers:",
-  "commands.muslimqol.providers.packs_header": "Compatibility Packs:",
-  "commands.muslimqol.reload.success": "MuslimQoL configuration and overrides reloaded successfully."
+  "commands.muslimqol.reload.success": "MuslimQoL configuration and overrides reloaded successfully.",
+
+  "hud.muslimqol.qibla": "Qibla %s",
+  "hud.muslimqol.qibla.aligned": "Aligned",
+  "hud.muslimqol.qibla.behind": "Behind",
+  "config.muslimqol.qibla.enabled": "Enable Qibla features",
+  "config.muslimqol.qibla.location_configured": "Observer location configured",
+  "config.muslimqol.qibla.latitude": "Observer latitude (-90° to +90°)",
+  "config.muslimqol.qibla.longitude": "Observer longitude (-180° to +180°)",
+  "config.muslimqol.qibla.hud_enabled": "Enable Qibla HUD overlay"
 }
