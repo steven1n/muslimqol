@@ -151,6 +151,97 @@ public class PrayerTimesCalculatorTest {
     }
 
     @Test
+    public void testHighLatitudeSafeBoundariesWhenAstronomicalTwilightExists() {
+        GeoCoordinate oslo = GeoCoordinate.of(59.9139, 10.7522);
+        ZoneId osloZone = ZoneId.of("Europe/Oslo");
+        LocalDate date = LocalDate.of(2026, 4, 15);
+
+        // 1. NONE preserves the raw astronomical Fajr (-18°) and Isha (-17°), which DO exist on April 15 in Oslo
+        PrayerTimes noneTimes = PrayerTimesCalculator.calculate(
+                oslo,
+                date,
+                osloZone,
+                PrayerCalculationParameters.of(CalculationMethod.MUSLIM_WORLD_LEAGUE, AsrMethod.STANDARD, HighLatitudeRule.NONE)
+        );
+        PrayerTimes nextDayTimes = PrayerTimesCalculator.calculate(
+                oslo,
+                date.plusDays(1),
+                osloZone,
+                PrayerCalculationParameters.of(CalculationMethod.MUSLIM_WORLD_LEAGUE, AsrMethod.STANDARD, HighLatitudeRule.NONE)
+        );
+
+        assertTrue(noneTimes.fajr().isAvailable());
+        assertTrue(noneTimes.isha().isAvailable());
+        assertEquals(PrayerTimeSource.ASTRONOMICAL, noneTimes.fajr().source());
+        assertEquals(PrayerTimeSource.ASTRONOMICAL, noneTimes.isha().source());
+
+        Instant astroFajr = noneTimes.fajr().instant().orElseThrow();
+        Instant astroIsha = noneTimes.isha().instant().orElseThrow();
+        Instant todaySunrise = noneTimes.sunrise().instant().orElseThrow();
+        Instant todaySunset = noneTimes.maghrib().instant().orElseThrow();
+        Instant tomorrowSunrise = nextDayTimes.sunrise().instant().orElseThrow();
+
+        // 2. Verify sunset -> next sunrise night duration
+        Duration nightDuration = Duration.between(todaySunset, tomorrowSunrise);
+        assertTrue(nightDuration.toMinutes() > 500 && nightDuration.toMinutes() < 600);
+        long nightNanos = nightDuration.toNanos();
+
+        // 3. SEVENTH_OF_NIGHT: astronomical Fajr (00:49:03Z) is earlier than safeFajr (02:40:28Z),
+        //    and astronomical Isha (21:30:18Z) is later than safeIsha (19:55:12Z) -> clamped to safe boundaries
+        Instant expectedSeventhFajr = todaySunrise.minusNanos(Math.round(nightNanos * (1.0 / 7.0)));
+        Instant expectedSeventhIsha = todaySunset.plusNanos(Math.round(nightNanos * (1.0 / 7.0)));
+        assertTrue(astroFajr.isBefore(expectedSeventhFajr));
+        assertTrue(astroIsha.isAfter(expectedSeventhIsha));
+
+        PrayerTimes seventhTimes = PrayerTimesCalculator.calculate(
+                oslo,
+                date,
+                osloZone,
+                PrayerCalculationParameters.of(CalculationMethod.MUSLIM_WORLD_LEAGUE, AsrMethod.STANDARD, HighLatitudeRule.SEVENTH_OF_NIGHT)
+        );
+        assertEquals(PrayerTimeSource.HIGH_LATITUDE_ADJUSTED, seventhTimes.fajr().source());
+        assertEquals(PrayerTimeSource.HIGH_LATITUDE_ADJUSTED, seventhTimes.isha().source());
+        assertEquals(expectedSeventhFajr, seventhTimes.fajr().instant().orElseThrow());
+        assertEquals(expectedSeventhIsha, seventhTimes.isha().instant().orElseThrow());
+
+        // Compare against pinned Batoul Apps Adhan v1.2.1 outputs for Oslo 2026-04-15 (MWL, SEVENTH_OF_THE_NIGHT)
+        assertTrue(Math.abs(Duration.between(Instant.parse("2026-04-15T02:40:00Z"), seventhTimes.fajr().instant().orElseThrow()).getSeconds()) <= 30);
+        assertTrue(Math.abs(Duration.between(Instant.parse("2026-04-15T19:55:00Z"), seventhTimes.isha().instant().orElseThrow()).getSeconds()) <= 30);
+
+        // 4. TWILIGHT_ANGLE: fajrFraction = 18/60 = 0.30, ishaFraction = 17/60 -> also clamps astronomical Fajr/Isha
+        Instant expectedTwilightFajr = todaySunrise.minusNanos(Math.round(nightNanos * (18.0 / 60.0)));
+        Instant expectedTwilightIsha = todaySunset.plusNanos(Math.round(nightNanos * (17.0 / 60.0)));
+        assertTrue(astroFajr.isBefore(expectedTwilightFajr));
+        assertTrue(astroIsha.isAfter(expectedTwilightIsha));
+
+        PrayerTimes twilightTimes = PrayerTimesCalculator.calculate(
+                oslo,
+                date,
+                osloZone,
+                PrayerCalculationParameters.of(CalculationMethod.MUSLIM_WORLD_LEAGUE, AsrMethod.STANDARD, HighLatitudeRule.TWILIGHT_ANGLE)
+        );
+        assertEquals(PrayerTimeSource.HIGH_LATITUDE_ADJUSTED, twilightTimes.fajr().source());
+        assertEquals(PrayerTimeSource.HIGH_LATITUDE_ADJUSTED, twilightTimes.isha().source());
+        assertEquals(expectedTwilightFajr, twilightTimes.fajr().instant().orElseThrow());
+        assertEquals(expectedTwilightIsha, twilightTimes.isha().instant().orElseThrow());
+        assertTrue(Math.abs(Duration.between(Instant.parse("2026-04-15T01:12:00Z"), twilightTimes.fajr().instant().orElseThrow()).getSeconds()) <= 30);
+        assertTrue(Math.abs(Duration.between(Instant.parse("2026-04-15T21:14:00Z"), twilightTimes.isha().instant().orElseThrow()).getSeconds()) <= 30);
+
+        // 5. MIDDLE_OF_NIGHT on Oslo 2026-04-15: astronomical Fajr/Isha are already inside the 1/2 night boundary,
+        //    so they remain ASTRONOMICAL
+        PrayerTimes middleTimes = PrayerTimesCalculator.calculate(
+                oslo,
+                date,
+                osloZone,
+                PrayerCalculationParameters.of(CalculationMethod.MUSLIM_WORLD_LEAGUE, AsrMethod.STANDARD, HighLatitudeRule.MIDDLE_OF_NIGHT)
+        );
+        assertEquals(PrayerTimeSource.ASTRONOMICAL, middleTimes.fajr().source());
+        assertEquals(PrayerTimeSource.ASTRONOMICAL, middleTimes.isha().source());
+        assertEquals(astroFajr, middleTimes.fajr().instant().orElseThrow());
+        assertEquals(astroIsha, middleTimes.isha().instant().orElseThrow());
+    }
+
+    @Test
     public void testPolarDayAndPolarNightDoNotFabricateSchedules() {
         ZoneId osloZone = ZoneId.of("Europe/Oslo");
 

@@ -112,9 +112,9 @@ public final class PrayerTimesCalculator {
                 }
             }
 
-            // 5. High-latitude fallback when astronomical twilight is unavailable
+            // 5. High-latitude safe boundary & fallback (standard Adhan semantics)
             HighLatitudeRule rule = parameters.highLatitudeRule();
-            if ((!fajr.isAvailable() || !isha.isAvailable()) && rule != HighLatitudeRule.NONE) {
+            if (rule != HighLatitudeRule.NONE) {
                 LocalDate nextCivilDate = civilDate.plusDays(1);
                 OptionalDouble nextSunriseHoursOpt = SolarMath.solarTimeForAltitude(
                         nextCivilDate,
@@ -127,15 +127,16 @@ public final class PrayerTimesCalculator {
                     Duration nightDuration = Duration.between(sunsetInstant, nextSunriseInstant);
                     if (!nightDuration.isNegative() && !nightDuration.isZero()) {
                         long nightNanos = nightDuration.toNanos();
-                        if (!fajr.isAvailable()) {
-                            double fajrFraction = rule.fajrNightFraction(parameters.fajrAngleDeg());
-                            Instant adjustedFajr = sunriseInstant.minusNanos(Math.round(nightNanos * fajrFraction));
-                            fajr = PrayerMoment.highLatitudeAdjusted(Prayer.FAJR, adjustedFajr);
+                        double fajrFraction = rule.fajrNightFraction(parameters.fajrAngleDeg());
+                        Instant safeFajr = sunriseInstant.minusNanos(Math.round(nightNanos * fajrFraction));
+                        if (!fajr.isAvailable() || fajr.instant().get().isBefore(safeFajr)) {
+                            fajr = PrayerMoment.highLatitudeAdjusted(Prayer.FAJR, safeFajr);
                         }
-                        if (!isha.isAvailable()) {
-                            double ishaFraction = rule.ishaNightFraction(parameters.ishaAngleDeg());
-                            Instant adjustedIsha = sunsetInstant.plusNanos(Math.round(nightNanos * ishaFraction));
-                            isha = PrayerMoment.highLatitudeAdjusted(Prayer.ISHA, adjustedIsha);
+
+                        double ishaFraction = rule.ishaNightFraction(parameters.ishaAngleDeg());
+                        Instant safeIsha = sunsetInstant.plusNanos(Math.round(nightNanos * ishaFraction));
+                        if (!isha.isAvailable() || isha.instant().get().isAfter(safeIsha)) {
+                            isha = PrayerMoment.highLatitudeAdjusted(Prayer.ISHA, safeIsha);
                         }
                     }
                 }

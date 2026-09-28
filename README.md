@@ -87,7 +87,7 @@ MuslimQoL 0.4 provides an offline, privacy-preserving daily prayer-time calculat
 
 - **Six Daily Solar & Prayer Events**: Computes `Fajr`, `Sunrise` (`isObligatoryPrayer = false`), `Dhuhr`, `Asr`, `Maghrib`, and `Isha` using NOAA / Jean Meeus solar position equations.
 - **Configurable Calculation Methods**: Supports `MUSLIM_WORLD_LEAGUE`, `EGYPTIAN`, `KARACHI`, `NORTH_AMERICA`, `KUWAIT`, `SINGAPORE`, `DUBAI`, and `CUSTOM` twilight angles, plus `STANDARD` and `HANAFI` Asr methods.
-- **High-Latitude & Polar Resilience**: Supports `NONE`, `MIDDLE_OF_NIGHT`, `SEVENTH_OF_NIGHT`, and `TWILIGHT_ANGLE` fallback rules across `sunset -> next sunrise`, returning structured `UNAVAILABLE` moments during polar day/night without sentinel timestamps.
+- **High-Latitude & Polar Resilience**: Supports `NONE`, `MIDDLE_OF_NIGHT`, `SEVENTH_OF_NIGHT`, and `TWILIGHT_ANGLE` safe-boundary and fallback rules across `sunset -> next sunrise`, returning structured `UNAVAILABLE` moments during polar day/night without sentinel timestamps.
 - **Client-Only Privacy**: Reuses client-configured observer coordinates from `muslimqol-client.toml` with zero network I/O and no coordinate leakage in logs or `toString()`.
 
 For full mathematical details, supported methods, and configuration options, see [docs/features/prayer-calculation.md](docs/features/prayer-calculation.md).

@@ -120,18 +120,22 @@ For any valid day where Asr is defined, `HANAFI` Asr always occurs strictly afte
 
 ## 5. High-Latitude Rules & Polar Regions
 
-At high latitudes during summer, the sun may remain above $-\alpha_{\text{fajr}}$ or $-\alpha_{\text{isha}}$ throughout the night even when normal sunset and sunrise occur.
+At high latitudes during spring and summer, twilight may either persist throughout the night (so the sun never dips to $-\alpha_{\text{fajr}}$ or $-\alpha_{\text{isha}}$) or occur at extreme midnight hours.
 
-When astronomical Fajr or Isha cannot be solved (`hourAngle` is `NaN`), MuslimQoL computes the night duration from **today's astronomical sunset (Maghrib) to tomorrow's astronomical sunrise** (before manual minute adjustments):
+MuslimQoL implements **standard Batoul Apps Adhan safe-limit semantics**:
+- Night duration is computed from **today's astronomical sunset (Maghrib) to tomorrow's astronomical sunrise** (before manual minute adjustments):
+  $$\text{nightDuration} = t_{\text{nextSunrise}} - t_{\text{sunset}}$$
+- For rules other than `NONE`:
+  - **Safe Fajr Boundary**: $t_{\text{safeFajr}} = t_{\text{sunrise}} - p_{\text{fajr}} \cdot \text{nightDuration}$. If astronomical Fajr is unavailable **or** occurs earlier than $t_{\text{safeFajr}}$, Fajr is clamped to $t_{\text{safeFajr}}$ and marked `PrayerTimeSource.HIGH_LATITUDE_ADJUSTED`.
+  - **Safe Isha Boundary**: $t_{\text{safeIsha}} = t_{\text{sunset}} + p_{\text{isha}} \cdot \text{nightDuration}$. If astronomical Isha is unavailable **or** occurs later than $t_{\text{safeIsha}}$, Isha is clamped to $t_{\text{safeIsha}}$ and marked `PrayerTimeSource.HIGH_LATITUDE_ADJUSTED`.
+- When `HighLatitudeRule.NONE` is selected, no high-latitude bounding or fallback is applied: solvable astronomical twilight is preserved as `PrayerTimeSource.ASTRONOMICAL`, and unsolvable twilight remains `PrayerTimeSource.UNAVAILABLE`.
 
-$$\text{nightDuration} = t_{\text{nextSunrise}} - t_{\text{sunset}}$$
-
-| Rule Enum | Portion of Night ($p$) | Fallback Fajr | Fallback Isha | Result Source |
+| Rule Enum | Portion of Night ($p$) | Safe Fajr Boundary ($t_{\text{safeFajr}}$) | Safe Isha Boundary ($t_{\text{safeIsha}}$) | Adjusted Source |
 | :--- | :---: | :--- | :--- | :--- |
-| `NONE` | — | `UNAVAILABLE` | `UNAVAILABLE` | `PrayerTimeSource.UNAVAILABLE` |
-| `MIDDLE_OF_NIGHT` | $1 / 2$ | $t_{\text{nextSunrise}} - p \cdot \text{nightDuration}$ | $t_{\text{sunset}} + p \cdot \text{nightDuration}$ | `PrayerTimeSource.HIGH_LATITUDE_ADJUSTED` |
-| `SEVENTH_OF_NIGHT` | $1 / 7$ | $t_{\text{nextSunrise}} - p \cdot \text{nightDuration}$ | $t_{\text{sunset}} + p \cdot \text{nightDuration}$ | `PrayerTimeSource.HIGH_LATITUDE_ADJUSTED` |
-| `TWILIGHT_ANGLE` | $\alpha / 60$ | $t_{\text{nextSunrise}} - \frac{\alpha_{\text{fajr}}}{60} \cdot \text{nightDuration}$ | $t_{\text{sunset}} + \frac{\alpha_{\text{isha}}}{60} \cdot \text{nightDuration}$ | `PrayerTimeSource.HIGH_LATITUDE_ADJUSTED` |
+| `NONE` | — | Preserves astronomical Fajr (or `UNAVAILABLE`) | Preserves astronomical Isha (or `UNAVAILABLE`) | `ASTRONOMICAL` / `UNAVAILABLE` |
+| `MIDDLE_OF_NIGHT` | $1 / 2$ | $t_{\text{sunrise}} - \frac{1}{2} \cdot \text{nightDuration}$ | $t_{\text{sunset}} + \frac{1}{2} \cdot \text{nightDuration}$ | `PrayerTimeSource.HIGH_LATITUDE_ADJUSTED` |
+| `SEVENTH_OF_NIGHT` | $1 / 7$ | $t_{\text{sunrise}} - \frac{1}{7} \cdot \text{nightDuration}$ | $t_{\text{sunset}} + \frac{1}{7} \cdot \text{nightDuration}$ | `PrayerTimeSource.HIGH_LATITUDE_ADJUSTED` |
+| `TWILIGHT_ANGLE` | $\alpha / 60$ | $t_{\text{sunrise}} - \frac{\alpha_{\text{fajr}}}{60} \cdot \text{nightDuration}$ | $t_{\text{sunset}} + \frac{\alpha_{\text{isha}}}{60} \cdot \text{nightDuration}$ | `PrayerTimeSource.HIGH_LATITUDE_ADJUSTED` |
 
 ### Polar Day & Polar Night
 
@@ -213,3 +217,19 @@ Prayer calculation settings are stored in `config/muslimqol-client.toml` alongsi
 2. **Zero Network Transmission**: Coordinates and prayer schedules are never sent in multiplayer packets or stored on servers.
 3. **Zero External Network I/O**: All astronomical calculations run offline in pure Java.
 4. **No Coordinate Leakage in Logs or `toString()`**: `PrayerTimes.toString()` and warning logs intentionally omit latitude and longitude.
+
+---
+
+## 10. Independent Reference Validation
+
+MuslimQoL's solar prayer calculator is validated in `PrayerTimesReferenceTest` against two frozen reference fixtures:
+
+1. **Primary Direct Batoul Apps Adhan Reference (`src/test/resources/reference/prayer-times-reference.json`)**:
+   - **Repository**: `https://github.com/batoulapps/adhan-java`
+   - **Pinned Version / Tag**: `v1.2.1` (tag object `5e633fd892493d28f1eab78b62872fc95b476225`, commit `eefc4ed1b910ec144dff247f45b2b23a16c7d0c2`)
+   - **Coverage**: 26 direct reference cases (156 events) across London, New York, Jakarta, Tokyo, Singapore, and Oslo; `MUSLIM_WORLD_LEAGUE`, `EGYPTIAN`, `KARACHI`, `NORTH_AMERICA`, `KUWAIT`, and `SINGAPORE`; `STANDARD` and `HANAFI` Asr; UK/US DST transitions; and 6 high-latitude cases (including 4 cases where astronomical twilight exists but violates the safe boundary and 2 cases where astronomical twilight is unavailable).
+   - **Observed Agreement**: Maximum deviation `88 seconds` (`<= 90 seconds` tolerance; accounts for Adhan's built-in `+1m` Dhuhr method adjustment and whole-minute rounding).
+2. **Secondary Unrounded Jean Meeus Cross-Validation (`src/test/resources/reference/prayer-times-meeus-reference.json`)**:
+   - **Coverage**: 19 reference cases (114 events) using unrounded Jean Meeus (2nd Ed., Ch. 15 & Ch. 25) 3-point Right-Ascension and Apparent Sidereal Time interpolation.
+   - **Observed Agreement**: Maximum deviation `16 seconds` (`1–2s` on Fajr/Sunrise/Dhuhr/Maghrib/Isha; `10–16s` on Asr).
+
