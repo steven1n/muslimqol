@@ -233,3 +233,19 @@ MuslimQoL's solar prayer calculator is validated in `PrayerTimesReferenceTest` a
    - **Coverage**: 19 reference cases (114 events) using unrounded Jean Meeus (2nd Ed., Ch. 15 & Ch. 25) 3-point Right-Ascension and Apparent Sidereal Time interpolation.
    - **Observed Agreement**: Maximum deviation `16 seconds` (`1–2s` on Fajr/Sunrise/Dhuhr/Maghrib/Isha; `10–16s` on Asr).
 
+---
+
+## 11. Verification & 0.4 Freeze Status
+
+Prayer Calculation 0.4 (`SolarMath`, `SolarCoordinates`, `PrayerTimesCalculator`, `PrayerTimes`, `PrayerMoment`, `PrayerTimeSource`, `CalculationMethod`, `PrayerCalculationParameters`, `AsrMethod`, `HighLatitudeRule`, `PrayerAdjustments`, `PrayerTimesClientService`, and reference fixtures) is frozen as the calculation foundation for MuslimQoL 0.5+:
+
+```text
+Prayer Calculation 0.4
+
+AUTOMATED PASS
+CLIENT BOOT PASS
+DEDICATED SERVER RUNTIME PASS
+REFERENCE VALIDATION PASS
+```
+
+

@@ -94,12 +94,26 @@ For full mathematical details, supported methods, and configuration options, see
 
 ---
 
+## Salah Experience (Reminders & Next-Prayer HUD)
+
+MuslimQoL 0.5 adds client-private, offline Salah reminders and a compact next-prayer HUD overlay built on the 0.4 prayer calculation engine:
+
+- **Five Obligatory Prayer Targets**: Tracks `Fajr`, `Dhuhr`, `Asr`, `Maghrib`, and `Isha` (`Sunrise` is never treated as a Salah reminder target).
+- **Next-Prayer HUD & Countdown**: Displays the next obligatory prayer, its local time (`HH:mm`) in the configured prayer `ZoneId`, and a seconds-free countdown (`2h 05m`, `47m`, `<1m`) that crosses midnight and DST boundaries accurately using `Instant` and `Duration`.
+- **Advance & Prayer-Start Toasts**: Configurable advance reminders (`0..60` minutes, default `10`; `0 = no advance notification`), prayer-start notifications, and per-prayer notification switches delivered via localized Minecraft Toasts (`en_us` and `ar_sa`).
+- **Deterministic Qibla Coexistence**: Positions cleanly below the Qibla HUD when both overlays are active, or at the top-left when Qibla HUD is hidden.
+
+For full behavior, configuration, and privacy details, see [docs/features/salah-experience.md](docs/features/salah-experience.md).
+
+---
+
 ## Roadmap Status
 
 - **0.1 Food Classification**: Complete
 - **0.2 Compatibility**: Complete
 - **0.3 Qibla**: Complete
-- **0.4 Prayer Calculation**: Current
+- **0.4 Prayer Calculation**: Complete
+- **0.5 Salah Experience**: Current
 
 ---
 
