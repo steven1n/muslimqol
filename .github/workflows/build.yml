@@ -27,6 +27,19 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check Version Consistency
+        run: |
+          chmod +x scripts/check_version_consistency.sh
+          ./scripts/check_version_consistency.sh
+
+      - name: Run Python Compatibility Tests
+        run: python3 -m unittest discover -s tools/compatibility/tests -t .
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 

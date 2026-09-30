@@ -32,7 +32,7 @@ public class MuslimQolMod {
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
     public MuslimQolMod(IEventBus modEventBus, ModContainer modContainer) {
-        LOGGER.info("Initializing MuslimQoL Mod (v0.1.0)");
+        LOGGER.info("Initializing MuslimQoL Mod (v{})", modContainer.getModInfo().getVersion());
 
         // Register Configurations
         modContainer.registerConfig(ModConfig.Type.COMMON, CommonConfig.SPEC);

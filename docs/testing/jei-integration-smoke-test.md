@@ -80,7 +80,7 @@ This document records the verification results of MuslimQoL's JEI compatibility 
 
 > These items require a human tester hovering items in a running graphical Minecraft client.
 > This development environment is headless — physical monitor is absent, so `glfwGetPrimaryMonitor` fails.
-> All items below remain untested until manual QA is performed.
+> All items below remain untested until manual QA is performed（未手动验证；JEI/EMI 悬停：【请维护者填写：已验证 / 未验证】）.
 
 | Test Item | Language | Resolution / Scale | Target Element | Status |
 | :--- | :---: | :---: | :--- | :---: |
