@@ -38,6 +38,18 @@ public final class ClientConfig {
     public static final ModConfigSpec.IntValue PRAYER_ADJUST_MAGHRIB;
     public static final ModConfigSpec.IntValue PRAYER_ADJUST_ISHA;
 
+    public static final ModConfigSpec.BooleanValue PRAYER_SALAH_HUD_ENABLED;
+    public static final ModConfigSpec.BooleanValue PRAYER_NOTIFICATIONS_ENABLED;
+    public static final ModConfigSpec.BooleanValue PRAYER_ADVANCE_NOTIFICATION_ENABLED;
+    public static final ModConfigSpec.IntValue PRAYER_ADVANCE_NOTIFICATION_MINUTES;
+    public static final ModConfigSpec.BooleanValue PRAYER_START_NOTIFICATION_ENABLED;
+
+    public static final ModConfigSpec.BooleanValue PRAYER_NOTIFY_FAJR;
+    public static final ModConfigSpec.BooleanValue PRAYER_NOTIFY_DHUHR;
+    public static final ModConfigSpec.BooleanValue PRAYER_NOTIFY_ASR;
+    public static final ModConfigSpec.BooleanValue PRAYER_NOTIFY_MAGHRIB;
+    public static final ModConfigSpec.BooleanValue PRAYER_NOTIFY_ISHA;
+
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
 
@@ -152,6 +164,46 @@ public final class ClientConfig {
         PRAYER_ADJUST_ISHA = builder
                 .comment("Minute offset adjustment for Isha (-60 to +60)")
                 .defineInRange("isha_adjustment_minutes", 0, -60, 60);
+
+        PRAYER_SALAH_HUD_ENABLED = builder
+                .comment("Show next obligatory prayer and countdown on the client HUD")
+                .define("salah_hud_enabled", true);
+
+        PRAYER_NOTIFICATIONS_ENABLED = builder
+                .comment("Master switch for client-side Salah reminder Toast notifications")
+                .define("notifications_enabled", true);
+
+        PRAYER_ADVANCE_NOTIFICATION_ENABLED = builder
+                .comment("Enable advance reminder notification before an obligatory prayer begins")
+                .define("advance_notification_enabled", true);
+
+        PRAYER_ADVANCE_NOTIFICATION_MINUTES = builder
+                .comment("Minutes before an obligatory prayer to show the advance reminder (0 to 60; 0 = no advance notification)")
+                .defineInRange("advance_notification_minutes", 10, 0, 60);
+
+        PRAYER_START_NOTIFICATION_ENABLED = builder
+                .comment("Enable reminder notification when an obligatory prayer start time is reached")
+                .define("start_notification_enabled", true);
+
+        PRAYER_NOTIFY_FAJR = builder
+                .comment("Enable Salah notifications for Fajr")
+                .define("notify_fajr", true);
+
+        PRAYER_NOTIFY_DHUHR = builder
+                .comment("Enable Salah notifications for Dhuhr")
+                .define("notify_dhuhr", true);
+
+        PRAYER_NOTIFY_ASR = builder
+                .comment("Enable Salah notifications for Asr")
+                .define("notify_asr", true);
+
+        PRAYER_NOTIFY_MAGHRIB = builder
+                .comment("Enable Salah notifications for Maghrib")
+                .define("notify_maghrib", true);
+
+        PRAYER_NOTIFY_ISHA = builder
+                .comment("Enable Salah notifications for Isha")
+                .define("notify_isha", true);
 
         builder.pop();
 

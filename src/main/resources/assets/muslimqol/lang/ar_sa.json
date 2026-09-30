@@ -63,5 +63,27 @@
   "config.muslimqol.prayer.custom_fajr_angle": "زاوية الفجر المخصصة (بالدرجات)",
   "config.muslimqol.prayer.custom_isha_angle": "زاوية العشاء المخصصة (بالدرجات)",
   "config.muslimqol.prayer.asr_method": "مذهب حساب العصر (قياسي أو حنفي)",
-  "config.muslimqol.prayer.high_latitude_rule": "قاعدة تعديل خطوط العرض العليا"
+  "config.muslimqol.prayer.high_latitude_rule": "قاعدة تعديل خطوط العرض العليا",
+  "config.muslimqol.prayer.salah_hud_enabled": "تفعيل مؤشر الصلاة القادمة على الشاشة",
+  "config.muslimqol.prayer.notifications_enabled": "تفعيل تنبيهات أوقات الصلاة",
+  "config.muslimqol.prayer.advance_notification_enabled": "تفعيل التنبيه المسبق للصلاة",
+  "config.muslimqol.prayer.advance_notification_minutes": "وقت التنبيه المسبق بالدقائق (من 0 إلى 60)",
+  "config.muslimqol.prayer.start_notification_enabled": "تفعيل تنبيه دخول وقت الصلاة",
+  "config.muslimqol.prayer.notify_fajr": "تفعيل تنبيه صلاة الفجر",
+  "config.muslimqol.prayer.notify_dhuhr": "تفعيل تنبيه صلاة الظهر",
+  "config.muslimqol.prayer.notify_asr": "تفعيل تنبيه صلاة العصر",
+  "config.muslimqol.prayer.notify_maghrib": "تفعيل تنبيه صلاة المغرب",
+  "config.muslimqol.prayer.notify_isha": "تفعيل تنبيه صلاة العشاء",
+
+  "hud.muslimqol.salah.next": "الصلاة القادمة: %s %s",
+  "hud.muslimqol.salah.countdown": "خلال %s",
+  "hud.muslimqol.salah.duration.hours_minutes": "%s ساعة و%s دقيقة",
+  "hud.muslimqol.salah.duration.hours": "%s ساعة",
+  "hud.muslimqol.salah.duration.minutes": "%s دقيقة",
+  "hud.muslimqol.salah.duration.less_than_minute": "أقل من دقيقة",
+
+  "notification.muslimqol.salah.upcoming.title": "%s",
+  "notification.muslimqol.salah.upcoming.body": "الصلاة بعد %s دقائق",
+  "notification.muslimqol.salah.started.title": "%s",
+  "notification.muslimqol.salah.started.body": "دخل وقت الصلاة"
 }
