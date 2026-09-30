@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Synchronized server-side `DATAPACK` and `USER_OVERRIDE` food classifications and all four consumption policies (`HALAL`, `RESTRICTED`, `DOUBTFUL`, `UNKNOWN`) to connected clients on dedicated servers via optional S2C custom payload `muslimqol:classification_sync` (`ClassificationSyncPayload`, `MuslimQolNetwork`, `ClientClassificationSyncHandler`, `ClientSyncedClassificationState`).
 - Triggered automatic client classification snapshot re-sync on player login (`OnDatapackSyncEvent`), `/reload`, `/muslimqol reload`, and server config reload (`ModConfigEvent.Reloading`), while ignoring sync payloads in singleplayer and clearing remote state on disconnect (`ClientPlayerNetworkEvent.LoggingOut`).
-- Added string-table deduplication (`reason`, `providerId`, `ruleId`) and deterministic warn-once truncation (`MAX_DATAPACK_ITEMS = 8,192`, `MAX_PAYLOAD_BYTES = 960 KiB`) with truncated namespace reporting so oversized server states never prevent player login.
+- Added string-table deduplication (`reason`, `providerId`, `ruleId`), deterministic count/byte-budget truncation (`MAX_DATAPACK_ITEMS = 8,192`, `MAX_CANDIDATES_PER_ITEM = 8`, `MAX_TOTAL_CANDIDATES = 16,384`, `MAX_USER_OVERRIDES = 1,024`, `MAX_STRING_TABLE_ENTRIES = 2,048`, `MAX_STRING_LENGTH = 256`, `MAX_PAYLOAD_BYTES = 960 KiB` / `983,040` bytes) with truncation warnings re-emitted whenever the truncated namespace set changes, and runtime exception fallback (`catch (RuntimeException)` with stack-trace error logging, 已捕获运行时异常并降级为空快照).
 
 ---
 

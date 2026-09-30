@@ -45,7 +45,7 @@ class ClassificationNetworkSyncTest {
         try {
             net.minecraft.SharedConstants.tryDetectVersion();
             net.minecraft.server.Bootstrap.bootStrap();
-        } catch (Throwable ignored) {}
+        } catch (ExceptionInInitializerError | NoClassDefFoundError | IllegalStateException | NullPointerException ignored) {}
     }
 
     @BeforeEach
@@ -60,6 +60,62 @@ class ClassificationNetworkSyncTest {
         FoodClassificationRegistry.clearAll();
         MuslimQolNetwork.resetHooksToDefault();
         ClassificationSyncPayload.resetTruncationWarningState();
+    }
+
+    @Test
+    void testProtocolEnumOrdinalsRemainFrozenForWireCompatibility() {
+        String failureMsg = "修改枚举顺序必须同步升级 PROTOCOL_VERSION";
+
+        assertEquals(
+                List.of(FoodStatus.HALAL, FoodStatus.RESTRICTED, FoodStatus.DOUBTFUL, FoodStatus.UNKNOWN),
+                List.of(FoodStatus.values()),
+                failureMsg
+        );
+        assertEquals(0, FoodStatus.HALAL.ordinal(), failureMsg);
+        assertEquals(1, FoodStatus.RESTRICTED.ordinal(), failureMsg);
+        assertEquals(2, FoodStatus.DOUBTFUL.ordinal(), failureMsg);
+        assertEquals(3, FoodStatus.UNKNOWN.ordinal(), failureMsg);
+
+        assertEquals(
+                List.of(
+                        ClassificationSource.BUILTIN,
+                        ClassificationSource.ITEM_TAG,
+                        ClassificationSource.DATAPACK,
+                        ClassificationSource.USER_OVERRIDE
+                ),
+                List.of(ClassificationSource.values()),
+                failureMsg
+        );
+        assertEquals(0, ClassificationSource.BUILTIN.ordinal(), failureMsg);
+        assertEquals(1, ClassificationSource.ITEM_TAG.ordinal(), failureMsg);
+        assertEquals(2, ClassificationSource.DATAPACK.ordinal(), failureMsg);
+        assertEquals(3, ClassificationSource.USER_OVERRIDE.ordinal(), failureMsg);
+
+        assertEquals(
+                List.of(
+                        ClassificationPriority.UNKNOWN,
+                        ClassificationPriority.BUILTIN,
+                        ClassificationPriority.ITEM_TAG,
+                        ClassificationPriority.DATAPACK,
+                        ClassificationPriority.USER_OVERRIDE
+                ),
+                List.of(ClassificationPriority.values()),
+                failureMsg
+        );
+        assertEquals(0, ClassificationPriority.UNKNOWN.ordinal(), failureMsg);
+        assertEquals(1, ClassificationPriority.BUILTIN.ordinal(), failureMsg);
+        assertEquals(2, ClassificationPriority.ITEM_TAG.ordinal(), failureMsg);
+        assertEquals(3, ClassificationPriority.DATAPACK.ordinal(), failureMsg);
+        assertEquals(4, ClassificationPriority.USER_OVERRIDE.ordinal(), failureMsg);
+
+        assertEquals(
+                List.of(ConsumptionPolicy.ALLOW, ConsumptionPolicy.WARN, ConsumptionPolicy.BLOCK),
+                List.of(ConsumptionPolicy.values()),
+                failureMsg
+        );
+        assertEquals(0, ConsumptionPolicy.ALLOW.ordinal(), failureMsg);
+        assertEquals(1, ConsumptionPolicy.WARN.ordinal(), failureMsg);
+        assertEquals(2, ConsumptionPolicy.BLOCK.ordinal(), failureMsg);
     }
 
     @Test
@@ -575,5 +631,146 @@ class ClassificationNetworkSyncTest {
         assertEquals(1, sentCount2);
         assertEquals(2, receivedByModded.size());
         assertEquals(FoodStatus.HALAL, receivedByModded.get(1).userOverrides().get(beef).status());
+    }
+
+    @Test
+    void testTruncationWarningReEmitsWhenTruncatedNamespaceSetChanges() {
+        // Helper to build a payload where one or more items have > MAX_CANDIDATES_PER_ITEM candidates,
+        // causing deterministic candidate truncation in those items' namespaces.
+        List<FoodClassification> excessCandidates = new ArrayList<>();
+        for (int c = 0; c < ClassificationSyncPayload.MAX_CANDIDATES_PER_ITEM + 2; c++) {
+            excessCandidates.add(new FoodClassification(
+                    FoodStatus.RESTRICTED,
+                    "swine",
+                    ClassificationSource.DATAPACK,
+                    ClassificationProviderId.parse("pack_" + c + ":datapack")
+            ));
+        }
+
+        ClassificationSyncPayload payloadNsA = new ClassificationSyncPayload(
+                Map.of(ResourceLocation.parse("mod_a:item_1"), excessCandidates),
+                Map.of(),
+                ConsumptionPolicy.ALLOW,
+                ConsumptionPolicy.BLOCK,
+                ConsumptionPolicy.WARN,
+                ConsumptionPolicy.ALLOW
+        );
+
+        ClassificationSyncPayload payloadNsAB = new ClassificationSyncPayload(
+                Map.of(
+                        ResourceLocation.parse("mod_a:item_1"), excessCandidates,
+                        ResourceLocation.parse("mod_b:item_2"), excessCandidates
+                ),
+                Map.of(),
+                ConsumptionPolicy.ALLOW,
+                ConsumptionPolicy.BLOCK,
+                ConsumptionPolicy.WARN,
+                ConsumptionPolicy.ALLOW
+        );
+
+        ClassificationSyncPayload payloadNsB = new ClassificationSyncPayload(
+                Map.of(ResourceLocation.parse("mod_b:item_2"), excessCandidates),
+                Map.of(),
+                ConsumptionPolicy.ALLOW,
+                ConsumptionPolicy.BLOCK,
+                ConsumptionPolicy.WARN,
+                ConsumptionPolicy.ALLOW
+        );
+
+        ClassificationSyncPayload nonTruncatedPayload = new ClassificationSyncPayload(
+                Map.of(ResourceLocation.parse("mod_a:item_1"), List.of(excessCandidates.get(0))),
+                Map.of(),
+                ConsumptionPolicy.ALLOW,
+                ConsumptionPolicy.BLOCK,
+                ConsumptionPolicy.WARN,
+                ConsumptionPolicy.ALLOW
+        );
+
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            // 1. Initial truncation on [mod_a] -> warns (count = 1)
+            buf.clear();
+            ClassificationSyncPayload.STREAM_CODEC.encode(buf, payloadNsA);
+            assertEquals(1, ClassificationSyncPayload.getTruncationWarningCount());
+            assertEquals(java.util.Set.of("mod_a"), ClassificationSyncPayload.getLastTruncatedNamespaces());
+
+            // 2. Repeated truncation on identical set [mod_a] -> suppressed (count = 1)
+            buf.clear();
+            ClassificationSyncPayload.STREAM_CODEC.encode(buf, payloadNsA);
+            assertEquals(1, ClassificationSyncPayload.getTruncationWarningCount(),
+                    "Identical truncated namespace set must not re-emit warning");
+
+            // 3. Truncated namespace set expands to [mod_a, mod_b] -> re-warns (count = 2)
+            buf.clear();
+            ClassificationSyncPayload.STREAM_CODEC.encode(buf, payloadNsAB);
+            assertEquals(2, ClassificationSyncPayload.getTruncationWarningCount(),
+                    "Expanded truncated namespace set must re-emit warning");
+            assertEquals(java.util.Set.of("mod_a", "mod_b"), ClassificationSyncPayload.getLastTruncatedNamespaces());
+
+            // 4. Repeated truncation on [mod_a, mod_b] -> suppressed (count = 2)
+            buf.clear();
+            ClassificationSyncPayload.STREAM_CODEC.encode(buf, payloadNsAB);
+            assertEquals(2, ClassificationSyncPayload.getTruncationWarningCount());
+
+            // 5. Truncated namespace set changes to [mod_b] -> re-warns (count = 3)
+            buf.clear();
+            ClassificationSyncPayload.STREAM_CODEC.encode(buf, payloadNsB);
+            assertEquals(3, ClassificationSyncPayload.getTruncationWarningCount(),
+                    "Changed truncated namespace set must re-emit warning");
+            assertEquals(java.util.Set.of("mod_b"), ClassificationSyncPayload.getLastTruncatedNamespaces());
+
+            // 6. Non-truncated encode resets last truncated namespace set to empty without warning (count = 3)
+            buf.clear();
+            ClassificationSyncPayload.STREAM_CODEC.encode(buf, nonTruncatedPayload);
+            assertEquals(3, ClassificationSyncPayload.getTruncationWarningCount());
+            assertEquals(java.util.Set.of(), ClassificationSyncPayload.getLastTruncatedNamespaces());
+
+            // 7. Re-introducing truncation on [mod_b] after clean encode -> warns again (count = 4)
+            buf.clear();
+            ClassificationSyncPayload.STREAM_CODEC.encode(buf, payloadNsB);
+            assertEquals(4, ClassificationSyncPayload.getTruncationWarningCount(),
+                    "Truncation after a non-truncated encode must warn again");
+            assertEquals(java.util.Set.of("mod_b"), ClassificationSyncPayload.getLastTruncatedNamespaces());
+        } finally {
+            buf.release();
+        }
+    }
+
+    @Test
+    void testEncodeCatchesRuntimeExceptionLogsErrorAndDegradesToEmptySnapshot() {
+        ClassificationSyncPayload payload = new ClassificationSyncPayload(
+                Map.of(ResourceLocation.parse("farmersdelight:bacon"), List.of(
+                        new FoodClassification(FoodStatus.RESTRICTED, "swine", ClassificationSource.DATAPACK)
+                )),
+                Map.of(),
+                ConsumptionPolicy.WARN,
+                ConsumptionPolicy.BLOCK,
+                ConsumptionPolicy.BLOCK,
+                ConsumptionPolicy.WARN
+        );
+
+        FriendlyByteBuf failingUtfBuf = new FriendlyByteBuf(Unpooled.buffer()) {
+            @Override
+            public FriendlyByteBuf writeUtf(String string, int maxLength) {
+                throw new IllegalStateException("Simulated unexpected RuntimeException during encode");
+            }
+        };
+
+        try {
+            assertDoesNotThrow(() -> ClassificationSyncPayload.STREAM_CODEC.encode(failingUtfBuf, payload),
+                    "RuntimeException during encode must be caught and degraded to an empty snapshot");
+            assertEquals(0, ClassificationSyncPayload.getTruncationWarningCount(),
+                    "RuntimeException fallback logs via LOGGER.error and must not use truncation warn-once state");
+
+            ClassificationSyncPayload decodedFallback = ClassificationSyncPayload.STREAM_CODEC.decode(failingUtfBuf);
+            assertTrue(decodedFallback.datapackEntries().isEmpty(), "Fallback snapshot must have empty datapackEntries");
+            assertTrue(decodedFallback.userOverrides().isEmpty(), "Fallback snapshot must have empty userOverrides");
+            assertEquals(ConsumptionPolicy.WARN, decodedFallback.halalPolicy());
+            assertEquals(ConsumptionPolicy.BLOCK, decodedFallback.restrictedPolicy());
+            assertEquals(ConsumptionPolicy.BLOCK, decodedFallback.doubtfulPolicy());
+            assertEquals(ConsumptionPolicy.WARN, decodedFallback.unknownPolicy());
+        } finally {
+            failingUtfBuf.release();
+        }
     }
 }

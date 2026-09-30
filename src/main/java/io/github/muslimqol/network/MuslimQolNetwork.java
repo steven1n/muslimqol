@@ -28,6 +28,15 @@ public final class MuslimQolNetwork {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MuslimQolNetwork.class);
 
+    /**
+     * Network protocol version for {@link ClassificationSyncPayload}.
+     * <p>
+     * IMPORTANT: {@link io.github.muslimqol.api.FoodStatus}, {@link io.github.muslimqol.api.ClassificationSource},
+     * {@link io.github.muslimqol.api.ClassificationPriority}, and {@link io.github.muslimqol.api.ConsumptionPolicy}
+     * are serialized on the wire by {@link Enum#ordinal()}.
+     * 修改枚举顺序必须同步升级 PROTOCOL_VERSION (modifying enum declaration order or inserting/removing constants
+     * requires incrementing {@code PROTOCOL_VERSION}).
+     */
     public static final String PROTOCOL_VERSION = "1";
 
     private static volatile BiConsumer<ClassificationSyncPayload, Boolean> clientSyncReceiver =
