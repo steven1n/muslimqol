@@ -1,16 +1,37 @@
 package io.github.muslimqol;
 
 import io.github.muslimqol.salah.CountdownFormatter;
+import io.github.muslimqol.salah.CountdownValue;
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.List;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CountdownFormatterTest {
+
+    @Test
+    void decomposesRequiredBoundaryDurationsIntoStructuredCountdownValues() {
+        assertEquals(new CountdownValue(0, 0, true), CountdownFormatter.decompose(Duration.ofSeconds(59)));
+        assertEquals(new CountdownValue(0, 1, false), CountdownFormatter.decompose(Duration.ofSeconds(60)));
+        assertEquals(new CountdownValue(0, 59, false), CountdownFormatter.decompose(Duration.ofMinutes(59)));
+        assertEquals(new CountdownValue(1, 0, false), CountdownFormatter.decompose(Duration.ofMinutes(60)));
+        assertEquals(new CountdownValue(5, 20, false), CountdownFormatter.decompose(Duration.ofHours(5).plusMinutes(20)));
+        assertEquals(new CountdownValue(24, 0, false), CountdownFormatter.decompose(Duration.ofHours(24)));
+        assertEquals(new CountdownValue(0, 0, true), CountdownFormatter.decompose(Duration.ZERO));
+        assertEquals(new CountdownValue(0, 0, true), CountdownFormatter.decompose(Duration.ofSeconds(-30)));
+        assertEquals("05", new CountdownValue(2, 5, false).zeroPaddedMinutes());
+        assertEquals("20", new CountdownValue(5, 20, false).zeroPaddedMinutes());
+    }
 
     @Test
     void formatsRequiredBoundaryDurationsWithoutSeconds() {
@@ -40,5 +61,24 @@ class CountdownFormatterTest {
 
         assertEquals("16:37", CountdownFormatter.formatLocalTime(londonTime));
         assertEquals("01:37", CountdownFormatter.formatLocalTime(tokyoTime));
+    }
+
+    @Test
+    void pureSalahPackageHasZeroMinecraftOrNeoForgeDependencies() throws Exception {
+        Path salahDir = Path.of("src/main/java/io/github/muslimqol/salah");
+        assertTrue(Files.isDirectory(salahDir), "Pure salah directory must exist");
+
+        List<Path> javaFiles;
+        try (Stream<Path> stream = Files.list(salahDir)) {
+            javaFiles = stream.filter(p -> p.toString().endsWith(".java")).toList();
+        }
+        assertFalse(javaFiles.isEmpty(), "Pure salah package must contain Java files");
+
+        for (Path file : javaFiles) {
+            String source = Files.readString(file);
+            assertFalse(source.contains("net.minecraft."), "Forbidden Minecraft import in " + file.getFileName());
+            assertFalse(source.contains("net.neoforged."), "Forbidden NeoForge import in " + file.getFileName());
+            assertFalse(source.contains("com.mojang."), "Forbidden Mojang import in " + file.getFileName());
+        }
     }
 }

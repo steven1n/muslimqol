@@ -77,6 +77,10 @@
 
   "hud.muslimqol.salah.next": "الصلاة القادمة: %s %s",
   "hud.muslimqol.salah.countdown": "خلال %s",
+  "hud.muslimqol.salah.duration.hours_minutes": "%s ساعة و%s دقيقة",
+  "hud.muslimqol.salah.duration.hours": "%s ساعة",
+  "hud.muslimqol.salah.duration.minutes": "%s دقيقة",
+  "hud.muslimqol.salah.duration.less_than_minute": "أقل من دقيقة",
 
   "notification.muslimqol.salah.upcoming.title": "%s",
   "notification.muslimqol.salah.upcoming.body": "الصلاة بعد %s دقائق",

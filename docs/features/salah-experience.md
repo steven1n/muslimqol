@@ -66,17 +66,18 @@ Reminders and next-prayer HUD scheduling target only the five daily obligatory p
 
 ---
 
-## 5. Countdown Formatting
+## 5. Countdown Decomposition & Localized Presentation
 
-`CountdownFormatter` produces stable, seconds-free countdown text:
+Countdown duration decomposition (`CountdownValue` via `CountdownFormatter.decompose(Duration)`) is kept pure and language-neutral in `io.github.muslimqol.salah`, while `SalahHudOverlay` formats user-facing text via localized `Component.translatable(...)` keys (`hud.muslimqol.salah.duration.*`) so Arabic UI never embeds hard-coded English `h`/`m` suffixes:
 
-| Remaining Duration | Formatted Output |
-| :--- | :--- |
-| `<= 0s` or `< 60s` (`1s..59s`) | `<1m` |
-| `1m..59m` (`60s..3599s`) | `1m` .. `59m` |
-| `>= 60m` | `1h 00m`, `2h 05m`, `5h 20m`, `24h 00m` |
+| Remaining Duration | `CountdownValue` `(hours, minutes, lessThanOneMinute)` | English HUD (`en_us`) | Arabic HUD (`ar_sa`) |
+| :--- | :--- | :--- | :--- |
+| `<= 0s` or `< 60s` (`1s..59s`) | `(0, 0, true)` | `in <1m` | `خلال أقل من دقيقة` |
+| `1m..59m` (`60s..3599s`) | `(0, 1..59, false)` | `in 1m` .. `in 59m` | `خلال 1 دقيقة` .. `خلال 59 دقيقة` |
+| Exact hours (`60m`, `24h`) | `(1, 0, false)`, `(24, 0, false)` | `in 1h`, `in 24h` | `خلال 1 ساعة`, `خلال 24 ساعة` |
+| Hours + minutes (`2h 05m`, `5h 20m`) | `(2, 5, false)`, `(5, 20, false)` | `in 2h 05m`, `in 5h 20m` | `خلال 2 ساعة و05 دقيقة`, `خلال 5 ساعة و20 دقيقة` |
 
-Negative countdown strings are never produced.
+Negative countdown strings are never produced. `CountdownFormatter.formatCountdown(Duration)` remains available for pure ASCII diagnostics and unit tests.
 
 ---
 

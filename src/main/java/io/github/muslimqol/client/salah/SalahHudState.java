@@ -2,6 +2,7 @@ package io.github.muslimqol.client.salah;
 
 import io.github.muslimqol.prayer.Prayer;
 import io.github.muslimqol.salah.CountdownFormatter;
+import io.github.muslimqol.salah.CountdownValue;
 import io.github.muslimqol.salah.SalahEvent;
 import io.github.muslimqol.salah.SalahScheduleState;
 
@@ -14,7 +15,8 @@ import java.util.Objects;
  *
  * <p>Prepared on client tick / polling cadence by {@link SalahClientService} and consumed
  * directly by {@link SalahHudOverlay} without triggering astronomical recalculations inside
- * render callbacks.
+ * render callbacks. Retains language-neutral {@link Duration} and {@link CountdownValue}
+ * rather than a pre-rendered English string so the HUD renders localized units in every language.
  */
 public record SalahHudState(
         boolean visible,
@@ -22,7 +24,7 @@ public record SalahHudState(
         ZonedDateTime localPrayerTime,
         String formattedLocalTime,
         Duration remaining,
-        String formattedCountdown
+        CountdownValue countdown
 ) {
 
     private static final SalahHudState HIDDEN = new SalahHudState(
@@ -31,7 +33,7 @@ public record SalahHudState(
             null,
             "",
             Duration.ZERO,
-            ""
+            new CountdownValue(0L, 0L, true)
     );
 
     public SalahHudState {
@@ -40,7 +42,7 @@ public record SalahHudState(
             Objects.requireNonNull(localPrayerTime, "localPrayerTime must not be null when visible");
             Objects.requireNonNull(formattedLocalTime, "formattedLocalTime must not be null when visible");
             Objects.requireNonNull(remaining, "remaining must not be null when visible");
-            Objects.requireNonNull(formattedCountdown, "formattedCountdown must not be null when visible");
+            Objects.requireNonNull(countdown, "countdown must not be null when visible");
             if (!nextPrayer.isObligatoryPrayer()) {
                 throw new IllegalArgumentException("Salah HUD may only display obligatory prayers: " + nextPrayer);
             }
@@ -71,7 +73,7 @@ public record SalahHudState(
                 next.zonedDateTime(),
                 CountdownFormatter.formatLocalTime(next.zonedDateTime()),
                 remaining,
-                CountdownFormatter.formatCountdown(remaining)
+                CountdownFormatter.decompose(remaining)
         );
     }
 }

@@ -7,15 +7,11 @@ import java.util.Locale;
 import java.util.Objects;
 
 /**
- * Pure formatter for Salah countdown durations and local prayer times.
+ * Pure formatter and duration decomposer for Salah countdowns and local prayer times.
  *
- * <p>Formatting rules:
- * <ul>
- *   <li>Negative or zero durations, and positive durations under 60 seconds: {@code "<1m"}</li>
- *   <li>1 to 59 minutes: {@code "1m"} .. {@code "59m"}</li>
- *   <li>60 minutes or more: {@code "1h 00m"}, {@code "2h 05m"}, {@code "24h 00m"}</li>
- *   <li>Seconds are never displayed in HUD countdowns.</li>
- * </ul>
+ * <p>User-facing HUD rendering must use {@link #decompose(Duration)} ({@link CountdownValue})
+ * together with localized translation keys rather than embedding {@link #formatCountdown(Duration)}
+ * directly into non-English UI strings.
  */
 public final class CountdownFormatter {
 
@@ -25,28 +21,26 @@ public final class CountdownFormatter {
     private CountdownFormatter() {}
 
     /**
-     * Formats a remaining duration into a stable human-readable countdown string without seconds.
-     * Never returns a negative value.
+     * Decomposes a remaining duration into a language-neutral {@link CountdownValue}
+     * without seconds or locale-specific unit strings.
+     */
+    public static CountdownValue decompose(Duration remaining) {
+        return CountdownValue.fromDuration(remaining);
+    }
+
+    /**
+     * Formats a remaining duration into a deterministic ASCII string without seconds
+     * (for diagnostics, logs, and pure unit tests). Never returns a negative value.
      */
     public static String formatCountdown(Duration remaining) {
-        Objects.requireNonNull(remaining, "remaining must not be null");
-        if (remaining.isNegative() || remaining.isZero()) {
+        CountdownValue value = decompose(remaining);
+        if (value.lessThanOneMinute()) {
             return "<1m";
         }
-
-        long totalSeconds = remaining.getSeconds();
-        if (totalSeconds < 60L) {
-            return "<1m";
+        if (value.hours() == 0L) {
+            return value.minutes() + "m";
         }
-
-        long totalMinutes = totalSeconds / 60L;
-        if (totalMinutes < 60L) {
-            return totalMinutes + "m";
-        }
-
-        long hours = totalMinutes / 60L;
-        long minutes = totalMinutes % 60L;
-        return String.format(Locale.ROOT, "%dh %02dm", hours, minutes);
+        return String.format(Locale.ROOT, "%dh %02dm", value.hours(), value.minutes());
     }
 
     /**

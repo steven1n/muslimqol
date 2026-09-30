@@ -3,6 +3,7 @@ package io.github.muslimqol.client.salah;
 import io.github.muslimqol.client.qibla.QiblaClientService;
 import io.github.muslimqol.config.ClientConfig;
 import io.github.muslimqol.qibla.QiblaResult;
+import io.github.muslimqol.salah.CountdownValue;
 import io.github.muslimqol.util.ResourceLocationUtil;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -74,11 +75,34 @@ public final class SalahHudOverlay {
     }
 
     /**
-     * Builds the localized countdown HUD line (e.g., {@code "in 1h 24m"}).
+     * Builds the localized duration {@link Component} from a language-neutral {@link CountdownValue}.
+     */
+    public static Component buildDurationComponent(CountdownValue countdown) {
+        Objects.requireNonNull(countdown, "countdown must not be null");
+        if (countdown.lessThanOneMinute()) {
+            return Component.translatable("hud.muslimqol.salah.duration.less_than_minute");
+        }
+        if (countdown.hours() == 0L) {
+            return Component.translatable("hud.muslimqol.salah.duration.minutes", countdown.minutes());
+        }
+        if (countdown.minutes() == 0L) {
+            return Component.translatable("hud.muslimqol.salah.duration.hours", countdown.hours());
+        }
+        return Component.translatable(
+                "hud.muslimqol.salah.duration.hours_minutes",
+                countdown.hours(),
+                countdown.zeroPaddedMinutes()
+        );
+    }
+
+    /**
+     * Builds the localized countdown HUD line (e.g., {@code "in 5h 20m"} in English or
+     * {@code "خلال 5 ساعة و20 دقيقة"} in Arabic).
      */
     public static Component buildCountdownLine(SalahHudState state) {
         Objects.requireNonNull(state, "state must not be null");
-        return Component.translatable("hud.muslimqol.salah.countdown", state.formattedCountdown());
+        Component durationComponent = buildDurationComponent(state.countdown());
+        return Component.translatable("hud.muslimqol.salah.countdown", durationComponent);
     }
 
     public static void render(GuiGraphics guiGraphics, DeltaTracker deltaTracker) {

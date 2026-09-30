@@ -261,15 +261,8 @@ class SalahClientServiceTest {
 
     @Test
     void englishAndArabicLanguageFilesHaveCompleteKeyParityForSalah() throws Exception {
-        JsonObject en;
-        JsonObject ar;
-        try (InputStream enStream = getClass().getResourceAsStream("/assets/muslimqol/lang/en_us.json");
-             InputStream arStream = getClass().getResourceAsStream("/assets/muslimqol/lang/ar_sa.json")) {
-            assertNotNull(enStream, "en_us.json must exist");
-            assertNotNull(arStream, "ar_sa.json must exist");
-            en = JsonParser.parseReader(new InputStreamReader(enStream, StandardCharsets.UTF_8)).getAsJsonObject();
-            ar = JsonParser.parseReader(new InputStreamReader(arStream, StandardCharsets.UTF_8)).getAsJsonObject();
-        }
+        JsonObject en = loadLangJson("/assets/muslimqol/lang/en_us.json");
+        JsonObject ar = loadLangJson("/assets/muslimqol/lang/ar_sa.json");
 
         Set<String> enKeys = en.keySet();
         Set<String> arKeys = ar.keySet();
@@ -278,6 +271,10 @@ class SalahClientServiceTest {
         List<String> requiredSalahKeys = List.of(
                 "hud.muslimqol.salah.next",
                 "hud.muslimqol.salah.countdown",
+                "hud.muslimqol.salah.duration.hours_minutes",
+                "hud.muslimqol.salah.duration.hours",
+                "hud.muslimqol.salah.duration.minutes",
+                "hud.muslimqol.salah.duration.less_than_minute",
                 "notification.muslimqol.salah.upcoming.title",
                 "notification.muslimqol.salah.upcoming.body",
                 "notification.muslimqol.salah.started.title",
@@ -297,5 +294,77 @@ class SalahClientServiceTest {
             assertTrue(en.has(key) && !en.get(key).getAsString().isBlank(), "Missing EN key: " + key);
             assertTrue(ar.has(key) && !ar.get(key).getAsString().isBlank(), "Missing AR key: " + key);
         }
+    }
+
+    @Test
+    void hudCountdownRendersLocalizedEnglishAndArabicWithoutHardCodedEnglishUnits() throws Exception {
+        JsonObject en = loadLangJson("/assets/muslimqol/lang/en_us.json");
+        JsonObject ar = loadLangJson("/assets/muslimqol/lang/ar_sa.json");
+
+        ZonedDateTime prayerTime = ZonedDateTime.of(2026, 3, 20, 16, 37, 0, 0, ZoneId.of("Europe/London"));
+
+        SalahHudState state5h20m = stateWithRemaining(prayerTime, Duration.ofHours(5).plusMinutes(20));
+        SalahHudState state1h = stateWithRemaining(prayerTime, Duration.ofMinutes(60));
+        SalahHudState state59m = stateWithRemaining(prayerTime, Duration.ofMinutes(59));
+        SalahHudState stateSubMinute = stateWithRemaining(prayerTime, Duration.ofSeconds(45));
+
+        // 1. English HUD countdown rendering
+        assertEquals("in 5h 20m", renderComponent(SalahHudOverlay.buildCountdownLine(state5h20m), en));
+        assertEquals("in 1h", renderComponent(SalahHudOverlay.buildCountdownLine(state1h), en));
+        assertEquals("in 59m", renderComponent(SalahHudOverlay.buildCountdownLine(state59m), en));
+        assertEquals("in <1m", renderComponent(SalahHudOverlay.buildCountdownLine(stateSubMinute), en));
+
+        // 2. Arabic HUD countdown rendering uses pure Arabic unit wording and contains zero English h/m letters
+        String ar5h20m = renderComponent(SalahHudOverlay.buildCountdownLine(state5h20m), ar);
+        String ar1h = renderComponent(SalahHudOverlay.buildCountdownLine(state1h), ar);
+        String ar59m = renderComponent(SalahHudOverlay.buildCountdownLine(state59m), ar);
+        String arSubMinute = renderComponent(SalahHudOverlay.buildCountdownLine(stateSubMinute), ar);
+
+        assertEquals("خلال 5 ساعة و20 دقيقة", ar5h20m);
+        assertEquals("خلال 1 ساعة", ar1h);
+        assertEquals("خلال 59 دقيقة", ar59m);
+        assertEquals("خلال أقل من دقيقة", arSubMinute);
+
+        for (String renderedArabic : List.of(ar5h20m, ar1h, ar59m, arSubMinute)) {
+            assertFalse(
+                    renderedArabic.matches(".*[A-Za-z].*"),
+                    "Arabic HUD countdown must not contain English unit letters: " + renderedArabic
+            );
+        }
+    }
+
+    private static SalahHudState stateWithRemaining(ZonedDateTime prayerTime, Duration remaining) {
+        return new SalahHudState(
+                true,
+                Prayer.ASR,
+                prayerTime,
+                io.github.muslimqol.salah.CountdownFormatter.formatLocalTime(prayerTime),
+                remaining,
+                io.github.muslimqol.salah.CountdownFormatter.decompose(remaining)
+        );
+    }
+
+    private JsonObject loadLangJson(String resourcePath) throws Exception {
+        try (InputStream stream = getClass().getResourceAsStream(resourcePath)) {
+            assertNotNull(stream, resourcePath + " must exist");
+            return JsonParser.parseReader(new InputStreamReader(stream, StandardCharsets.UTF_8)).getAsJsonObject();
+        }
+    }
+
+    private static String renderComponent(net.minecraft.network.chat.Component component, JsonObject lang) {
+        if (component.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents tc) {
+            String pattern = lang.get(tc.getKey()).getAsString();
+            Object[] rawArgs = tc.getArgs();
+            Object[] resolvedArgs = new Object[rawArgs.length];
+            for (int i = 0; i < rawArgs.length; i++) {
+                if (rawArgs[i] instanceof net.minecraft.network.chat.Component child) {
+                    resolvedArgs[i] = renderComponent(child, lang);
+                } else {
+                    resolvedArgs[i] = rawArgs[i];
+                }
+            }
+            return String.format(java.util.Locale.ROOT, pattern, resolvedArgs);
+        }
+        return component.getString();
     }
 }

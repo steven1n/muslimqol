@@ -77,6 +77,10 @@
 
   "hud.muslimqol.salah.next": "Next: %s %s",
   "hud.muslimqol.salah.countdown": "in %s",
+  "hud.muslimqol.salah.duration.hours_minutes": "%sh %sm",
+  "hud.muslimqol.salah.duration.hours": "%sh",
+  "hud.muslimqol.salah.duration.minutes": "%sm",
+  "hud.muslimqol.salah.duration.less_than_minute": "<1m",
 
   "notification.muslimqol.salah.upcoming.title": "%s",
   "notification.muslimqol.salah.upcoming.body": "Prayer in %s minutes",
