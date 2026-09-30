@@ -166,7 +166,9 @@ public final class FoodCompatibilityManager {
             @Override
             public Optional<FoodClassification> classify(ResourceLocation itemId, ItemStack stack) {
                 if (itemId == null) return Optional.empty();
-                return Optional.ofNullable(state.userOverrides().get(itemId));
+                var synced = FoodClassificationRegistry.getClientSyncedState();
+                Map<ResourceLocation, FoodClassification> overrides = synced != null ? synced.userOverrides() : state.userOverrides();
+                return Optional.ofNullable(overrides.get(itemId));
             }
         });
 
@@ -185,14 +187,18 @@ public final class FoodCompatibilityManager {
             @Override
             public Optional<FoodClassification> classify(ResourceLocation itemId, ItemStack stack) {
                 if (itemId == null) return Optional.empty();
-                List<FoodClassification> entries = state.datapackEntries().get(itemId);
+                var synced = FoodClassificationRegistry.getClientSyncedState();
+                Map<ResourceLocation, List<FoodClassification>> datapack = synced != null ? synced.datapackEntries() : state.datapackEntries();
+                List<FoodClassification> entries = datapack.get(itemId);
                 return (entries != null && !entries.isEmpty()) ? Optional.of(entries.get(0)) : Optional.empty();
             }
 
             @Override
             public List<FoodClassification> classifyAll(ResourceLocation itemId, ItemStack stack) {
                 if (itemId == null) return List.of();
-                List<FoodClassification> entries = state.datapackEntries().get(itemId);
+                var synced = FoodClassificationRegistry.getClientSyncedState();
+                Map<ResourceLocation, List<FoodClassification>> datapack = synced != null ? synced.datapackEntries() : state.datapackEntries();
+                List<FoodClassification> entries = datapack.get(itemId);
                 return entries != null ? entries : List.of();
             }
         });
