@@ -15,5 +15,6 @@ public final class ClientInit {
         modEventBus.addListener(FoodOverlayRenderer::onRegisterItemDecorations);
         modEventBus.addListener(QiblaHudOverlay::onRegisterGuiLayers);
         NeoForge.EVENT_BUS.register(FoodTooltipHandler.class);
+        ClientClassificationSyncHandler.init();
     }
 }
