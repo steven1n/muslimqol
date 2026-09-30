@@ -11,6 +11,7 @@ import io.github.muslimqol.compat.FoodCompatibilityManager;
 import io.github.muslimqol.config.CommonConfig;
 import io.github.muslimqol.food.FoodClassificationRegistry;
 import io.github.muslimqol.food.FoodClassifier;
+import io.github.muslimqol.network.MuslimQolNetwork;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.item.ItemArgument;
@@ -215,6 +216,7 @@ public class MuslimQolCommands {
 
     private static int reloadMod(CommandSourceStack source) {
         FoodClassificationRegistry.reloadUserOverridesFromConfig();
+        MuslimQolNetwork.broadcastClassificationSync(source.getServer());
         source.sendSuccess(() -> Component.translatable("commands.muslimqol.reload.success"), true);
         return 1;
     }

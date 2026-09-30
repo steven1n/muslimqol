@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- Synchronized server-side `DATAPACK` and `USER_OVERRIDE` food classifications and all four consumption policies (`HALAL`, `RESTRICTED`, `DOUBTFUL`, `UNKNOWN`) to connected clients on dedicated servers via optional S2C custom payload `muslimqol:classification_sync` (`ClassificationSyncPayload`, `MuslimQolNetwork`, `ClientClassificationSyncHandler`, `ClientSyncedClassificationState`).
+- Triggered automatic client classification snapshot re-sync on player login (`OnDatapackSyncEvent`), `/reload`, `/muslimqol reload`, and server config reload (`ModConfigEvent.Reloading`), while ignoring sync payloads in singleplayer and clearing remote state on disconnect (`ClientPlayerNetworkEvent.LoggingOut`).
+- Added string-table deduplication (`reason`, `providerId`, `ruleId`) and deterministic warn-once truncation (`MAX_DATAPACK_ITEMS = 8,192`, `MAX_PAYLOAD_BYTES = 960 KiB`) with truncated namespace reporting so oversized server states never prevent player login.
+
+---
+
 ## [0.1.0-rc1] - 2026-09-25
 
 ### Added
