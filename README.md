@@ -279,6 +279,12 @@ MuslimQoL undergoes continuous automated and runtime verification:
 - **Consumption & Pig Policies**: Server-authoritative `BLOCK`, `WARN`, and `ALLOW` policies and non-destructive pig spawn/drop controls verified.
 - **Datapack & Config Reloading**: Transactional runtime reload via `/reload`, `/muslimqol reload`, and `ModConfigEvent.Reloading` verified.
 
+### 手动验收状态 (Manual Verification Status)
+
+- Salah HUD、提醒、Qibla：维护者已于 2026-09-30 在图形客户端手动验证通过。
+- JEI/EMI 悬停：【请维护者填写：已验证 / 未验证】（未手动验证）。
+- 食物 tooltip、栏位图标：【请维护者填写：已验证 / 未验证】（未手动验证）。
+
 Detailed test logs and evidence are documented in [docs/testing/v0.1-test-matrix.md](docs/testing/v0.1-test-matrix.md) and [docs/testing/dedicated-server-sync-reproduction.md](docs/testing/dedicated-server-sync-reproduction.md).
 
 ---
