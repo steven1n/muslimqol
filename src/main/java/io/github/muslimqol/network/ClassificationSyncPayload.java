@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -42,9 +41,11 @@ import java.util.concurrent.atomic.AtomicReference;
  * and {@code ruleId} strings via an indexed string table to stay well within Minecraft 1.21.1's
  * {@code ClientboundCustomPayloadPacket.MAX_PAYLOAD_SIZE} (1,048,576 bytes / 1 MiB).
  * <p>
- * If server state exceeds any configured entry, candidate, or string-table limit, encoding
- * deterministically truncates excess entries and logs a single warning (including affected
- * namespaces) instead of throwing an exception that would prevent players from logging in.
+ * If server state exceeds any configured entry, candidate, string-table, or byte-size limit, encoding
+ * deterministically truncates excess entries and logs a warning whenever the set of affected
+ * item namespaces changes. Any unexpected {@link RuntimeException} during encoding is caught,
+ * logged via {@code LOGGER.error} with stack trace, and degraded to an empty snapshot
+ * (已捕获运行时异常并降级为空快照).
  */
 public record ClassificationSyncPayload(
         Map<ResourceLocation, List<FoodClassification>> datapackEntries,
@@ -78,7 +79,6 @@ public record ClassificationSyncPayload(
     public static final int MAX_TOTAL_CANDIDATES = 16_384;
     public static final int MAX_USER_OVERRIDES = 1_024;
 
-    private static final AtomicBoolean TRUNCATION_WARNED = new AtomicBoolean(false);
     private static final AtomicInteger TRUNCATION_WARNING_COUNT = new AtomicInteger(0);
     private static final AtomicReference<Set<String>> LAST_TRUNCATED_NAMESPACES = new AtomicReference<>(Set.of());
 
@@ -147,10 +147,9 @@ public record ClassificationSyncPayload(
     }
 
     /**
-     * Resets the warn-once truncation state (used in unit tests).
+     * Resets the truncation warning state and last truncated namespace set (used in unit tests).
      */
     public static void resetTruncationWarningState() {
-        TRUNCATION_WARNED.set(false);
         TRUNCATION_WARNING_COUNT.set(0);
         LAST_TRUNCATED_NAMESPACES.set(Set.of());
     }
@@ -373,10 +372,12 @@ public record ClassificationSyncPayload(
             }
 
             if (!truncationReasons.isEmpty()) {
-                warnTruncationOnce(
+                warnIfTruncatedNamespacesChanged(
                         String.join("; ", truncationReasons),
                         Collections.unmodifiableSet(new TreeSet<>(truncatedNamespaces))
                 );
+            } else {
+                LAST_TRUNCATED_NAMESPACES.set(Set.of());
             }
 
             // Write deduplicated string table (reason / providerId / ruleId)
@@ -408,10 +409,11 @@ public record ClassificationSyncPayload(
             buf.writeVarInt(payload.restrictedPolicy().ordinal());
             buf.writeVarInt(payload.doubtfulPolicy().ordinal());
             buf.writeVarInt(payload.unknownPolicy().ordinal());
-        } catch (Throwable t) {
-            // Ultimate non-throwing fail-safe: reset writerIndex and write minimal valid payload
+        } catch (RuntimeException e) {
+            // Runtime exception fail-safe (已捕获运行时异常并降级为空快照):
+            // reset writerIndex, log full stack trace (not subject to warn-once), and write empty snapshot
             buf.writerIndex(startWriterIndex);
-            warnTruncationOnce("unexpected encoding error fallback (" + t.getClass().getSimpleName() + ")", Set.of());
+            LOGGER.error("Unexpected RuntimeException while encoding ClassificationSyncPayload; falling back to empty snapshot", e);
             buf.writeVarInt(0);
             buf.writeVarInt(0);
             buf.writeVarInt(0);
@@ -528,11 +530,11 @@ public record ClassificationSyncPayload(
         return 5;
     }
 
-    private static void warnTruncationOnce(String summary, Set<String> truncatedNamespaces) {
-        if (TRUNCATION_WARNED.compareAndSet(false, true)) {
+    private static void warnIfTruncatedNamespacesChanged(String summary, Set<String> truncatedNamespaces) {
+        Set<String> previous = LAST_TRUNCATED_NAMESPACES.getAndSet(truncatedNamespaces);
+        if (!truncatedNamespaces.equals(previous)) {
             TRUNCATION_WARNING_COUNT.incrementAndGet();
-            LAST_TRUNCATED_NAMESPACES.set(truncatedNamespaces);
-            LOGGER.warn("ClassificationSyncPayload exceeded network bounds and was truncated before sending (warn-once): "
+            LOGGER.warn("ClassificationSyncPayload exceeded network bounds and was truncated before sending: "
                             + "{}; truncatedNamespaces={}. Server-side enforcement remains active, but truncated items may display as UNKNOWN on the client.",
                     summary, truncatedNamespaces);
         }

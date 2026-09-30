@@ -53,7 +53,7 @@ public final class ClientClassificationSyncHandler {
         try {
             Minecraft mc = Minecraft.getInstance();
             return mc != null && mc.hasSingleplayerServer();
-        } catch (Throwable ignored) {
+        } catch (IllegalStateException | NullPointerException ignored) {
             return false;
         }
     }
