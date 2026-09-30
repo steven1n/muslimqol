@@ -9,6 +9,7 @@ import io.github.muslimqol.event.FoodConsumptionHandler;
 import io.github.muslimqol.event.PigDropHandler;
 import io.github.muslimqol.event.PigSpawnHandler;
 import io.github.muslimqol.food.FoodClassificationRegistry;
+import io.github.muslimqol.network.MuslimQolNetwork;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -39,6 +40,7 @@ public class MuslimQolMod {
 
         modEventBus.addListener(this::onConfigLoading);
         modEventBus.addListener(this::onConfigReloading);
+        modEventBus.addListener(MuslimQolNetwork::registerPayloads);
 
         // Register Gameplay Event Handlers on Game Bus
         NeoForge.EVENT_BUS.register(FoodConsumptionHandler.class);
@@ -46,6 +48,7 @@ public class MuslimQolMod {
         NeoForge.EVENT_BUS.register(PigDropHandler.class);
         NeoForge.EVENT_BUS.register(MuslimQolCommands.class);
         NeoForge.EVENT_BUS.addListener(this::onAddReloadListeners);
+        NeoForge.EVENT_BUS.addListener(MuslimQolNetwork::onDatapackSync);
 
         // Client Initialization with strict client-only isolation (Rule 2)
         if (FMLEnvironment.dist == Dist.CLIENT) {
@@ -62,6 +65,7 @@ public class MuslimQolMod {
     private void onConfigReloading(ModConfigEvent.Reloading event) {
         if (event.getConfig().getSpec() == CommonConfig.SPEC) {
             FoodClassificationRegistry.reloadUserOverridesFromConfig();
+            MuslimQolNetwork.broadcastToCurrentServer();
         }
     }
 
