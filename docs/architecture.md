@@ -45,6 +45,25 @@ All runtime classification mappings, user overrides, active compatibility packs,
 ### 6. Provider Canonicalization & Reserved IDs
 The framework prevents third-party providers from registering reserved system IDs (`muslimqol:user_override`, `muslimqol:datapack`, `muslimqol:item_tag`, `muslimqol:builtin`) or elevating their priority beyond their declared registration level.
 
+### 7. Dedicated Server to Client Classification Synchronization
+When connected to a dedicated server, datapack reload listeners (`FoodClassificationReloadListener`) and server configuration (`CommonConfig`) execute only on the server JVM. To ensure client tooltips (`FoodClassificationTooltipFormatter`) and inventory overlays (`FoodOverlayRenderer`) reflect the server's active rules without compromising server authoritativeness or physical side isolation:
+- **Scoped Snapshot (`ClientSyncedClassificationState`)**: The server sends `ClassificationSyncPayload` (`muslimqol:classification_sync`, protocol `"1"`, registered with `PayloadRegistrar.optional()`) containing only `datapackEntries`, `userOverrides`, and the four `ConsumptionPolicy` values (`halal`, `restricted`, `doubtful`, `unknown`). Server-only compatibility diagnostics (`activePacks`, `skippedPacks`, `packStates`) are excluded, and the client applies the snapshot via `FoodClassificationRegistry.applyClientSyncedState(...)` without invoking `FoodCompatibilityManager.applyRuntimeState(...)`.
+- **Sync Triggers**: Sent on `OnDatapackSyncEvent` (player login and `/reload`), `/muslimqol reload`, and `ModConfigEvent.Reloading` (`ServerLifecycleHooks.getCurrentServer()`), gated by `player.connection.hasChannel(ClassificationSyncPayload.TYPE)` so vanilla clients are unaffected.
+- **Singleplayer & Disconnect Safety**: `ClientClassificationSyncHandler` ignores sync payloads on integrated singleplayer connections (`isMemoryConnection || mc.hasSingleplayerServer()`) because the client and integrated server already share the same JVM state, and clears `CLIENT_SYNCED_STATE` on `ClientPlayerNetworkEvent.LoggingOut`.
+- **Payload Size Bounds & String-Table Deduplication**:
+  - Vanilla 1.21.1 enforces `ClientboundCustomPayloadPacket.MAX_PAYLOAD_SIZE = 1,048,576` bytes (1 MiB); MuslimQoL enforces `MAX_PAYLOAD_BYTES = 960 KiB` (`983,040` bytes).
+  - Repeated `reason`, `providerId`, and `ruleId` strings are deduplicated into an indexed string table (`MAX_STRING_TABLE_ENTRIES = 2,048`, `MAX_STRING_LENGTH = 256`).
+  - **Repository Dataset Reference Counts**: `BuiltinFoodData` defines 37 vanilla items (`src/main/java/io/github/muslimqol/food/BuiltinFoodData.java`); `muslimqol_farmersdelight` defines 89 items across 10 JSON files (`src/main/resources/data/muslimqol_farmersdelight/muslimqol/food_classifications/*.json`); `muslimqol_pamhc2foodcore` defines 180 items across 6 JSON files (`src/main/resources/data/muslimqol_pamhc2foodcore/muslimqol/food_classifications/*.json`).
+  - **Size Estimation at `MAX_DATAPACK_ITEMS = 8,192`** (`MAX_TOTAL_CANDIDATES = 16,384`, `MAX_USER_OVERRIDES = 1,024`, `MAX_STRING_TABLE_ENTRIES = 2,048`, `MAX_STRING_LENGTH = 256`):
+    - *Typical upper-bound lengths (`64 B` + `2 B` VarInt = `66 B` per string/ID, `9 B` per indexed candidate)*:
+      String table (`2,048 × 66 B ≈ 132.0 KiB`) + Datapack keys (`8,192 × 66 B ≈ 528.0 KiB`) + Candidates (`16,384 × 9 B ≈ 144.0 KiB`) + UserOverrides (`1,024 × 75 B ≈ 75.0 KiB`) + headers (`< 1 KiB`) = **`~880.0 KiB` (`< 960 KiB`)**.
+    - *Theoretical maximum string lengths (`MAX_STRING_LENGTH = 256` chars, i.e., `258 B` ASCII or `770 B` 3-byte UTF-8)*:
+      String table (`2,048 × 258 B = 528,384 B ≈ 516.0 KiB` ASCII; up to `2,048 × 770 B = 1,576,960 B ≈ 1,540.0 KiB` 3-byte UTF-8) + Datapack `ResourceLocation` keys (`8,192 × 258 B = 2,113,536 B ≈ 2,064.0 KiB`) + Candidates (`16,384 × 9 B = 147,456 B ≈ 144.0 KiB`) + UserOverrides (`1,024 × 267 B = 273,408 B ≈ 267.0 KiB`) = **`3,062,804 B` (`~2,991 KiB ≈ 2.92 MiB` ASCII) to `4,111,380 B` (`~4,015 KiB ≈ 3.92 MiB` UTF-8)**, which exceeds `960 KiB`.
+- **Over-Limit Truncation, Final Byte-Size Guard & Future Chunked Streaming**:
+  - **Count Guard & Final Byte-Size Guard（最终体积守卫）**: Encoding first applies count limits (`MAX_DATAPACK_ITEMS`, `MAX_TOTAL_CANDIDATES`, `MAX_CANDIDATES_PER_ITEM`, `MAX_USER_OVERRIDES`, `MAX_STRING_TABLE_ENTRIES`) and string length clamping (`MAX_STRING_LENGTH = 256`), and then enforces a **final byte-size guard** before writing to the buffer: if total serialized bytes still exceed `MAX_PAYLOAD_BYTES` (`960 KiB`), excess entries are deterministically dropped from the lexicographical tail of `datapackEntries` (and `userOverrides` if needed) with string-table compaction until the payload fits within `960 KiB`. A top-level fail-safe guarantees that **no encoding path can ever throw an exception** that would prevent a player from logging in, emitting a single warning (`warn-once`) with all affected item namespaces (`truncatedNamespaces`).
+  - **Truncation Semantics（截断后服务端仍拦截，客户端可能显示 Unknown）**: Server-side consumption enforcement remains 100% active for all items, while truncated items may display as `UNKNOWN` on the client.
+  - **Future Roadmap（后续改为分包）**: Subsequent iterations will replace single-packet truncation with multi-packet chunked streaming.
+
 ---
 
 ## Package Overview
@@ -74,8 +93,13 @@ io.github.muslimqol/
 ├── food/            # Classification logic and builtin datasets
 │   ├── FoodClassifier.java
 │   ├── FoodClassificationRegistry.java
+│   ├── ClientSyncedClassificationState.java
 │   ├── BuiltinFoodData.java
 │   └── FoodTagResolver.java
+│
+├── network/         # Server-to-client custom payload and sync dispatch
+│   ├── ClassificationSyncPayload.java
+│   └── MuslimQolNetwork.java
 │
 ├── config/          # Common and Client configuration specifications
 │   ├── CommonConfig.java
@@ -90,8 +114,10 @@ io.github.muslimqol/
 │   ├── PigSpawnHandler.java
 │   └── PigDropHandler.java
 │
-├── client/          # Client-only rendering, tooltips, and overlay decorators
+├── client/          # Client-only rendering, tooltips, overlay decorators, and sync receiver
 │   ├── ClientInit.java
+│   ├── ClientClassificationSyncHandler.java
+│   ├── FoodClassificationTooltipFormatter.java
 │   ├── FoodTooltipHandler.java
 │   └── FoodOverlayRenderer.java
 │
