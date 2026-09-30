@@ -6,7 +6,7 @@ This document outlines the architectural roadmap for MuslimQoL across current an
 
 ## Release Schedule
 
-### v0.1 — Food Classification Foundation (Current Release)
+### v0.1 — Food Classification Foundation (Released)
 - [x] Four-tier classification state machine (`HALAL`, `RESTRICTED`, `DOUBTFUL`, `UNKNOWN`).
 - [x] Priority resolution cascade (`USER_OVERRIDE` → `DATAPACK` → `ITEM_TAG` → `BUILTIN` → `UNKNOWN`).
 - [x] Server-authoritative consumption policy enforcement (`ALLOW`, `WARN`, `BLOCK`).
@@ -17,24 +17,28 @@ This document outlines the architectural roadmap for MuslimQoL across current an
 - [x] Automated unit test suite with 100% core coverage.
 
 ### v0.2 — Recipe Viewers & Compatibility Packs
-- [x] Multi-provider compatibility framework with provenance tracking and conflict diagnostics (Experimental).
+- [x] Multi-provider compatibility framework with provenance tracking, version verification (`/muslimqol compat`), and conflict diagnostics.
 - [x] Optional compatibility datapack metadata (`compatibility.json`) and missing-mod safe skipping.
 - [x] Optional JEI (Just Enough Items) compatibility via NeoForge standard tooltip pipeline and shared tooltip presentation layer.
 - [x] Turnkey compatibility datapack for Farmer's Delight 1.3.4 (Minecraft 1.21.1 / NeoForge) with full 89-item audited classification dataset (`muslimqol_farmersdelight`).
 - [x] Optional EMI (Item and Recipe Viewer) compatibility via NeoForge standard tooltip pipeline and shared tooltip presentation layer.
-- Turnkey compatibility datapacks for additional culinary mods (Pam's HarvestCraft, Alex's Mobs, Aquaculture 2).
+- [x] Turnkey compatibility datapack for Pam's HarvestCraft 2 — Food Core 1.21.1-1.0.5 with full 180-item audited classification dataset (`muslimqol_pamhc2foodcore`).
+- [x] Dedicated-server to client S2C classification and consumption-policy synchronization (`muslimqol:classification_sync`).
+- [ ] Turnkey compatibility datapacks for additional culinary mods (Alex's Mobs, Aquaculture 2).
 
 ### v0.3 — Qibla Direction System
-- Algorithmic Qibla calculation based on world spawn / cardinal anchor or configured coordinates.
-- Custom handheld Qibla compass and HUD indicator option.
+- [x] Algorithmic spherical great-circle Qibla bearing calculation based on client-configured observer coordinates and Minecraft cardinal anchor (`-Z = North`).
+- [x] Client-private Qibla HUD direction indicator (`QiblaHudOverlay`).
+- [ ] Custom handheld Qibla compass item.
 
 ### v0.4 — Real-World Prayer Calculation Engine
-- Offline astronomical solar angle calculation engine (Fajr, Dhuhr, Asr, Maghrib, Isha).
-- Support for global calculation conventions (MWL, ISNA, Egypt, Makkah, Karachi, Tehran).
+- [x] Offline astronomical solar angle calculation engine (`Fajr`, `Sunrise`, `Dhuhr`, `Asr`, `Maghrib`, `Isha`).
+- [x] Support for global calculation conventions (`MUSLIM_WORLD_LEAGUE`, `EGYPTIAN`, `KARACHI`, `NORTH_AMERICA`, `KUWAIT`, `SINGAPORE`, `DUBAI`, `CUSTOM`), `STANDARD`/`HANAFI` Asr methods, and high-latitude rules (`NONE`, `MIDDLE_OF_NIGHT`, `SEVENTH_OF_NIGHT`, `TWILIGHT_ANGLE`).
 
-### v0.5 — Salah Notifications & Observance Helpers
-- Discreet action-bar and toast reminders synchronized to in-game day/night or real-world time.
-- Configurable reminder lead times and audio cues.
+### v0.5 — Salah Notifications & Observance Helpers (Current Beta: `v0.5.0-beta.1`)
+- [x] Client-private next-prayer HUD overlay with localized countdown (`en_us` and `ar_sa`) and real-world Toast reminders (advance reminder and prayer-start notification).
+- [x] Configurable advance reminder lead time (`0..60` minutes) and per-prayer notification toggles.
+- [ ] Optional audio cues.
 
 ### v0.6 — Ramadan & Fasting Utilities
 - Fasting tracker mechanics (Suhoor to Iftar intervals).
