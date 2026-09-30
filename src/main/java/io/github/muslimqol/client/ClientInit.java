@@ -19,5 +19,6 @@ public final class ClientInit {
         modEventBus.addListener(SalahHudOverlay::onRegisterGuiLayers);
         NeoForge.EVENT_BUS.register(FoodTooltipHandler.class);
         NeoForge.EVENT_BUS.addListener(SalahClientService::onClientTick);
+        ClientClassificationSyncHandler.init();
     }
 }

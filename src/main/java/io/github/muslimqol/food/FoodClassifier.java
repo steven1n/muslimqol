@@ -136,8 +136,26 @@ public final class FoodClassifier {
 
     /**
      * Resolves the effective consumption policy for a given FoodStatus.
+     * Prefers server-synchronized policies when connected to a remote dedicated server.
      */
     public static ConsumptionPolicy getPolicy(FoodStatus status) {
+        if (status == null) {
+            return ConsumptionPolicy.ALLOW;
+        }
+
+        ClientSyncedClassificationState synced = FoodClassificationRegistry.getClientSyncedState();
+        if (synced != null) {
+            return synced.getPolicy(status);
+        }
+
+        return getServerPolicy(status);
+    }
+
+    /**
+     * Resolves the server-authoritative consumption policy directly from {@link CommonConfig}
+     * (or built-in defaults), never reading {@code CLIENT_SYNCED_STATE}.
+     */
+    public static ConsumptionPolicy getServerPolicy(FoodStatus status) {
         if (status == null) {
             return ConsumptionPolicy.ALLOW;
         }

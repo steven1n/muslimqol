@@ -33,6 +33,9 @@ public final class FoodClassificationRegistry {
     private static final AtomicReference<ClassificationRuntimeState> RUNTIME_STATE =
             new AtomicReference<>(ClassificationRuntimeState.EMPTY);
 
+    private static final AtomicReference<ClientSyncedClassificationState> CLIENT_SYNCED_STATE =
+            new AtomicReference<>(null);
+
     private static final Comparator<FoodClassification> RULE_COMPARATOR = (a, b) -> {
         int p = Integer.compare(b.priority().level(), a.priority().level());
         if (p != 0) return p;
@@ -58,6 +61,81 @@ public final class FoodClassificationRegistry {
      */
     public static ClassificationRuntimeState getRuntimeState() {
         return RUNTIME_STATE.get();
+    }
+
+    /**
+     * Returns the active client-synced classification state from a remote dedicated server, or {@code null} if inactive.
+     * <p>
+     * Always returns {@code null} on a dedicated server or when a local/integrated {@code MinecraftServer}
+     * is active, ensuring server execution paths never read {@link #CLIENT_SYNCED_STATE}.
+     */
+    public static ClientSyncedClassificationState getClientSyncedState() {
+        if (isLogicalServerEnvironment()) {
+            return null;
+        }
+        return CLIENT_SYNCED_STATE.get();
+    }
+
+    /**
+     * Returns {@code true} when remote dedicated-server classification sync state is active on this client.
+     */
+    public static boolean hasClientSyncedState() {
+        return getClientSyncedState() != null;
+    }
+
+    private static boolean isLogicalServerEnvironment() {
+        try {
+            if (net.neoforged.fml.loading.FMLEnvironment.dist != null
+                    && net.neoforged.fml.loading.FMLEnvironment.dist.isDedicatedServer()) {
+                return true;
+            }
+            return net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer() != null;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * Atomically applies remote server-synced classifications and consumption policies on the client.
+     * <p>
+     * Does NOT modify {@link #RUNTIME_STATE}, does NOT touch compatibility pack metadata
+     * ({@code activePacks}, {@code skippedPacks}, {@code packStates}), and does NOT invoke
+     * {@link FoodCompatibilityManager#applyRuntimeState(ClassificationRuntimeState)}.
+     */
+    public static void applyClientSyncedState(ClientSyncedClassificationState syncedState) {
+        if (syncedState == null) {
+            clearClientSyncedState();
+            return;
+        }
+        Map<ResourceLocation, List<FoodClassification>> sortedDatapack = new HashMap<>();
+        syncedState.datapackEntries().forEach((id, list) -> {
+            if (id != null && list != null && !list.isEmpty()) {
+                List<FoodClassification> sorted = new ArrayList<>(list);
+                sorted.sort(RULE_COMPARATOR);
+                sortedDatapack.put(id, Collections.unmodifiableList(sorted));
+            }
+        });
+        ClientSyncedClassificationState normalized = new ClientSyncedClassificationState(
+                sortedDatapack,
+                syncedState.userOverrides(),
+                syncedState.halalPolicy(),
+                syncedState.restrictedPolicy(),
+                syncedState.doubtfulPolicy(),
+                syncedState.unknownPolicy()
+        );
+        CLIENT_SYNCED_STATE.set(normalized);
+        LOGGER.info("Applied remote server classification sync: {} datapack keys, {} user overrides",
+                normalized.datapackEntries().size(), normalized.userOverrides().size());
+    }
+
+    /**
+     * Clears remote server-synced classification state on disconnect without touching local/integrated server state.
+     */
+    public static void clearClientSyncedState() {
+        ClientSyncedClassificationState prev = CLIENT_SYNCED_STATE.getAndSet(null);
+        if (prev != null) {
+            LOGGER.info("Cleared remote server classification sync state on disconnect");
+        }
     }
 
     /**
@@ -128,7 +206,7 @@ public final class FoodClassificationRegistry {
      */
     public static Optional<FoodClassification> getDatapackClassification(ResourceLocation id) {
         if (id == null) return Optional.empty();
-        List<FoodClassification> list = RUNTIME_STATE.get().datapackEntries().get(id);
+        List<FoodClassification> list = activeDatapackMap().get(id);
         if (list != null && !list.isEmpty()) {
             return Optional.of(list.get(0));
         }
@@ -140,7 +218,7 @@ public final class FoodClassificationRegistry {
      */
     public static List<FoodClassification> getDatapackClassifications(ResourceLocation id) {
         if (id == null) return List.of();
-        List<FoodClassification> list = RUNTIME_STATE.get().datapackEntries().get(id);
+        List<FoodClassification> list = activeDatapackMap().get(id);
         return list != null ? list : List.of();
     }
 
@@ -161,7 +239,7 @@ public final class FoodClassificationRegistry {
 
     public static Optional<FoodClassification> getUserOverride(ResourceLocation id) {
         if (id == null) return Optional.empty();
-        return Optional.ofNullable(RUNTIME_STATE.get().userOverrides().get(id));
+        return Optional.ofNullable(activeUserOverridesMap().get(id));
     }
 
     public static void clearDatapack() {
@@ -179,6 +257,7 @@ public final class FoodClassificationRegistry {
     }
 
     public static void clearAll() {
+        CLIENT_SYNCED_STATE.set(null);
         ClassificationRuntimeState next = ClassificationRuntimeState.EMPTY;
         RUNTIME_STATE.set(next);
         FoodCompatibilityManager.resetToDefaults(next);
@@ -188,7 +267,7 @@ public final class FoodClassificationRegistry {
      * Returns an unmodifiable snapshot view of primary datapack entries (v0.1 backward-compatible).
      */
     public static Map<ResourceLocation, FoodClassification> getDatapackEntries() {
-        Map<ResourceLocation, List<FoodClassification>> raw = RUNTIME_STATE.get().datapackEntries();
+        Map<ResourceLocation, List<FoodClassification>> raw = activeDatapackMap();
         Map<ResourceLocation, FoodClassification> result = new HashMap<>();
         raw.forEach((k, v) -> {
             if (v != null && !v.isEmpty()) {
@@ -202,11 +281,21 @@ public final class FoodClassificationRegistry {
      * Returns the complete unmodifiable multi-candidate datapack entries map.
      */
     public static Map<ResourceLocation, List<FoodClassification>> getDatapackMultiEntries() {
-        return RUNTIME_STATE.get().datapackEntries();
+        return activeDatapackMap();
     }
 
     public static Map<ResourceLocation, FoodClassification> getUserOverrides() {
-        return RUNTIME_STATE.get().userOverrides();
+        return activeUserOverridesMap();
+    }
+
+    private static Map<ResourceLocation, List<FoodClassification>> activeDatapackMap() {
+        ClientSyncedClassificationState synced = getClientSyncedState();
+        return synced != null ? synced.datapackEntries() : RUNTIME_STATE.get().datapackEntries();
+    }
+
+    private static Map<ResourceLocation, FoodClassification> activeUserOverridesMap() {
+        ClientSyncedClassificationState synced = getClientSyncedState();
+        return synced != null ? synced.userOverrides() : RUNTIME_STATE.get().userOverrides();
     }
 
     /**
