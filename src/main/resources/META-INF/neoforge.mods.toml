@@ -1,27 +1,29 @@
 modLoader="javafml"
-loaderVersion="[4,)"
-license="MIT"
+loaderVersion="${loader_version_range}"
+license="${mod_license}"
+issueTrackerURL="https://github.com/steven1n/muslimqol/issues"
 
 [[mods]]
-modId="muslimqol"
-version="0.1.0-rc1"
-displayName="MuslimQoL"
-authors="MuslimQoL Contributors"
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+displayURL="https://github.com/steven1n/muslimqol"
+authors="${mod_authors}"
 description='''
-A lightweight, extensible Minecraft mod that helps Muslim players manage food-related gameplay preferences.
+${mod_description}
 '''
 
-[[dependencies.muslimqol]]
+[[dependencies.${mod_id}]]
 modId="neoforge"
 type="required"
-versionRange="[21.1.0,)"
+versionRange="${neo_version_range}"
 ordering="NONE"
 side="BOTH"
 
-[[dependencies.muslimqol]]
+[[dependencies.${mod_id}]]
 modId="minecraft"
 type="required"
-versionRange="[1.21.1, 1.22)"
+versionRange="${minecraft_version_range}"
 ordering="NONE"
 side="BOTH"
 
