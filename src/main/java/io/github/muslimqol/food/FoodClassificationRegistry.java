@@ -90,7 +90,7 @@ public final class FoodClassificationRegistry {
                 return true;
             }
             return net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer() != null;
-        } catch (Throwable ignored) {
+        } catch (IllegalStateException | NullPointerException ignored) {
             return false;
         }
     }
